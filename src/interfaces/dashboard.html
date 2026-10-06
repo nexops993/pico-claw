@@ -1,0 +1,1338 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pico Claw — Control Plane</title>
+<style>
+:root {
+  --bg0:#07090f; --bg1:#0b0f18;
+  --panel: rgba(255,255,255,.05); --panel-2: rgba(255,255,255,.08);
+  --border: rgba(255,255,255,.10); --border-soft: rgba(255,255,255,.06);
+  --text:#e8ecf4; --dim:#98a2b8; --faint:#6b7488;
+  --accent:#7aa5ff; --accent-2:#8b5cff; --ok:#3ecf8e; --warn:#e6b450; --err:#f47067;
+  --user-bubble: linear-gradient(135deg,#4d7dff,#7a5cff);
+  --glass: blur(20px) saturate(150%);
+  --radius: 20px; --radius-sm: 12px; --radius-xs: 9px;
+  --shadow: 0 18px 50px rgba(0,0,0,.35);
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sans: -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+  --density: 1;
+}
+html[data-theme="light"] {
+  --bg0:#eef1f7; --bg1:#f7f9fd;
+  --panel: rgba(255,255,255,.62); --panel-2: rgba(255,255,255,.82);
+  --border: rgba(15,23,42,.10); --border-soft: rgba(15,23,42,.06);
+  --text:#182035; --dim:#5b6478; --faint:#8a93a6;
+  --accent:#3b6cf5; --accent-2:#7a4df0; --ok:#12945d; --warn:#a2701c; --err:#cf3f43;
+  --user-bubble: linear-gradient(135deg,#3b6cf5,#7a4df0);
+  --shadow: 0 16px 40px rgba(30,41,66,.14);
+}
+html[data-density="compact"] { --density: .85; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; color: var(--text); font: calc(14px * var(--density))/1.55 var(--sans);
+  background: radial-gradient(1100px 700px at 85% -10%, rgba(122,92,255,.16), transparent 60%),
+              radial-gradient(900px 600px at -10% 110%, rgba(58,124,255,.13), transparent 55%),
+              linear-gradient(160deg, var(--bg0), var(--bg1));
+  overflow: hidden;
+}
+body::after {
+  content:""; position: fixed; inset: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.014 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+}
+.app { display: flex; height: 100vh; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--panel-2); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  width: 232px; flex: none; display: flex; flex-direction: column; gap: 4px;
+  padding: 18px 14px; backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  background: var(--panel); border-right: 1px solid var(--border-soft); z-index: 30;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
+.brand .logo {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; font-size: 15px;
+  box-shadow: 0 6px 18px rgba(90,110,255,.35);
+}
+.brand b { font-size: 15px; letter-spacing: .2px; }
+.brand small { display: block; color: var(--dim); font-size: 10.5px; font-weight: 500; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  border: 1px solid transparent; background: transparent; color: var(--dim);
+  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-weight: 500;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.nav-item:hover { color: var(--text); background: var(--panel); }
+.nav-item.active { color: var(--text); background: var(--panel-2); border-color: var(--border); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.nav-item .ico { width: 17px; text-align: center; opacity: .9; }
+.sidebar .spacer { flex: 1; }
+.side-foot { color: var(--faint); font-size: 11px; padding: 8px 10px; border-top: 1px solid var(--border-soft); }
+.side-foot .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+
+/* ---------- main column ---------- */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; gap: 12px; padding: 14px 22px;
+  border-bottom: 1px solid var(--border-soft); backdrop-filter: var(--glass); background: var(--panel);
+}
+.topbar h1 { font-size: 16px; margin: 0; font-weight: 650; }
+.topbar .sub { color: var(--dim); font-size: 12px; }
+.topbar .spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel); font-size: 12px; color: var(--dim); white-space: nowrap;
+}
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.pill.ok .dot { background: var(--ok); } .pill.warn .dot { background: var(--warn); } .pill.err .dot { background: var(--err); }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel);
+  color: var(--dim); cursor: pointer; font-size: 14px; display: grid; place-items: center; transition: all .15s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--accent); }
+.btn {
+  border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; font-weight: 550;
+  padding: 7px 14px; border-radius: 10px; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff; box-shadow: 0 8px 22px rgba(80,105,255,.35); }
+.btn.danger { border-color: rgba(244,112,103,.4); color: var(--err); }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
+
+/* ---------- pages & cards ---------- */
+.pages { flex: 1; min-height: 0; position: relative; }
+.page { display: none; height: 100%; overflow-y: auto; padding: 22px; }
+.page.active { display: block; }
+.page-chat.active { display: flex; padding: 0; overflow: hidden; }
+.grid { display: grid; gap: 16px; }
+.grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
+.card {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
+  background: var(--panel); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  box-shadow: var(--shadow); transition: transform .15s, border-color .15s;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--border); }
+.card h3 { margin: 0 0 10px; font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 4.5px 0; font-size: 13px; border-bottom: 1px dashed var(--border-soft); }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: var(--dim); } .kv .v { font-weight: 550; text-align: right; overflow-wrap: anywhere; }
+.metric { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+.metric small { font-size: 12px; color: var(--dim); font-weight: 500; margin-left: 6px; }
+.trend-ok { color: var(--ok); } .trend-err { color: var(--err); }
+.badge { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); color: var(--dim); }
+.badge.ok { color: var(--ok); border-color: rgba(62,207,142,.35); background: rgba(62,207,142,.08); }
+.badge.warn { color: var(--warn); border-color: rgba(230,180,80,.35); background: rgba(230,180,80,.08); }
+.badge.err { color: var(--err); border-color: rgba(244,112,103,.35); background: rgba(244,112,103,.08); }
+.badge.acc { color: var(--accent); border-color: rgba(122,165,255,.35); background: rgba(122,165,255,.08); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--dim); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: top; overflow-wrap: anywhere; }
+tr:last-child td { border-bottom: none; }
+.mono { font-family: var(--mono); font-size: 12px; }
+
+/* ---------- states ---------- */
+.state { text-align: center; color: var(--dim); padding: 34px 16px; }
+.state .big { font-size: 30px; margin-bottom: 6px; }
+.state.err { color: var(--err); }
+.skeleton { height: 13px; border-radius: 7px; margin: 9px 0; background: linear-gradient(90deg, var(--panel), var(--panel-2), var(--panel)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.fade { animation: fadeUp .25s ease; }
+
+/* ---------- chat workspace ---------- */
+.chat-shell { display: flex; height: 100%; min-height: 0; }
+.conv-rail {
+  width: 220px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--border-soft);
+  background: var(--panel); backdrop-filter: var(--glass); padding: 14px 10px; gap: 8px; min-height: 0;
+}
+.conv-rail h2 { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin: 0 6px; }
+.conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.conv-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: transparent; color: var(--dim); cursor: pointer; font: inherit; text-align: left; width: 100%;
+}
+.conv-item:hover { color: var(--text); background: var(--panel-2); }
+.conv-item.active { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+.conv-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-toolbar {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--border-soft);
+  backdrop-filter: var(--glass); background: var(--panel); flex-wrap: wrap;
+}
+.chat-toolbar select, .field select, .field input, .field textarea {
+  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 7px 10px;
+}
+#messages { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+.row { display: flex; }
+.row.user { justify-content: flex-end; }
+.bubble {
+  max-width: min(78%, 46rem); padding: 9px 14px; border-radius: var(--radius); overflow-wrap: anywhere;
+  animation: fadeUp .22s ease;
+}
+.row.user .bubble { background: var(--user-bubble); color: #fff; border-bottom-right-radius: 6px; }
+.row.assistant .bubble { background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 6px; backdrop-filter: var(--glass); }
+.row.error .bubble { background: transparent; border: 1px solid var(--err); color: var(--err); }
+.bubble p { margin: .3em 0; } .bubble h1,.bubble h2,.bubble h3 { margin: .5em 0 .3em; font-size: 1.05em; }
+.bubble pre { background: rgba(0,0,0,.28); border: 1px solid var(--border-soft); border-radius: var(--radius-xs); padding: 10px 12px; overflow-x: auto; position: relative; margin: .45em 0; }
+html[data-theme="light"] .bubble pre { background: rgba(20,30,60,.05); }
+.bubble pre code { font-family: var(--mono); font-size: 12px; background: none; padding: 0; }
+.bubble code { font-family: var(--mono); font-size: 12px; background: rgba(122,165,255,.14); padding: .1em .35em; border-radius: 5px; }
+.bubble a { color: var(--accent); }
+.bubble ul { margin: .35em 0; padding-left: 1.25em; }
+.copy-btn { position: absolute; top: 6px; right: 6px; font-size: 10.5px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2); color: var(--dim); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.bubble pre:hover .copy-btn { opacity: 1; }
+.tool-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--accent); border: 1px solid rgba(122,165,255,.3); background: rgba(122,165,255,.08); padding: 2px 9px; border-radius: 999px; margin: 4px 0; }
+.typing { display: inline-flex; gap: 5px; padding: 6px 2px; }
+.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); animation: blink 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+.chat-input-wrap { padding: 14px 18px 18px; }
+.chat-input-box {
+  display: flex; align-items: flex-end; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--panel-2); backdrop-filter: var(--glass); padding: 10px 12px; box-shadow: var(--shadow);
+}
+#chat-input {
+  flex: 1; resize: none; border: none; background: transparent; color: var(--text); font: inherit;
+  max-height: 180px; min-height: 24px; outline: none;
+}
+#chat-input::placeholder { color: var(--faint); }
+.hint { color: var(--faint); font-size: 11px; margin: 8px 4px 0; text-align: center; }
+.hint kbd { font-family: var(--mono); background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 10px; }
+
+/* ---------- misc ---------- */
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.filters .chip { border: 1px solid var(--border); background: var(--panel); color: var(--dim); border-radius: 999px; padding: 4px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.filters .chip.active { color: var(--text); border-color: var(--accent); background: rgba(122,165,255,.10); }
+.sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
+.sec-head h2 { margin: 0; font-size: 15px; }
+.sec-head .spacer { flex: 1; }
+.editor { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
+.stage { display: flex; gap: 10px; padding: 6px 0; align-items: flex-start; font-size: 13px; }
+.stage .mark { width: 20px; text-align: center; }
+.stage.done .mark { color: var(--ok); } .stage.fail .mark { color: var(--err); } .stage.run .mark { color: var(--warn); }
+
+#toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 90; }
+.toast {
+  min-width: 240px; max-width: 380px; padding: 11px 15px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--panel-2); backdrop-filter: var(--glass); box-shadow: var(--shadow);
+  font-size: 13px; animation: fadeUp .2s ease;
+}
+.toast.ok { border-color: rgba(62,207,142,.4); } .toast.err { border-color: rgba(244,112,103,.45); }
+dialog {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2);
+  backdrop-filter: var(--glass); color: var(--text); padding: 20px 22px; max-width: 420px; box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+.backdrop { display: none; }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .22s ease; }
+  .sidebar.open { transform: none; }
+  .backdrop { display: block; position: fixed; inset: 0; background: rgba(4,6,12,.5); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .backdrop.show { opacity: 1; pointer-events: auto; }
+  .menu-btn { display: grid !important; }
+  .conv-rail { position: absolute; z-index: 10; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .22s ease; width: 240px; }
+  .conv-rail.open { transform: none; }
+  .page { padding: 14px; }
+}
+.menu-btn { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <div class="brand">
+      <div class="logo">PC</div>
+      <div><b>Pico Claw</b><small>Agent Control Plane</small></div>
+    </div>
+    <nav id="nav" style="display:flex;flex-direction:column;gap:3px;">
+      <button class="nav-item" data-page="chat"><span class="ico">💬</span>Chat</button>
+      <button class="nav-item" data-page="overview"><span class="ico">🛰</span>Overview</button>
+      <button class="nav-item" data-page="sessions"><span class="ico">🗂</span>Sessions</button>
+      <button class="nav-item" data-page="models"><span class="ico">🧠</span>Models</button>
+      <button class="nav-item" data-page="profiles"><span class="ico">🎭</span>Profiles</button>
+      <button class="nav-item" data-page="skills"><span class="ico">✨</span>Skills</button>
+      <button class="nav-item" data-page="tools"><span class="ico">🛠</span>Tools</button>
+      <button class="nav-item" data-page="memory"><span class="ico">📚</span>Memory</button>
+      <button class="nav-item" data-page="gateways"><span class="ico">📡</span>Gateways</button>
+      <button class="nav-item" data-page="config"><span class="ico">⚙️</span>Config</button>
+      <button class="nav-item" data-page="settings"><span class="ico">🎛</span>Settings</button>
+      <button class="nav-item" data-page="sandbox"><span class="ico">📦</span>Sandbox</button>
+      <button class="nav-item" data-page="doctor"><span class="ico">🩺</span>Doctor</button>
+      <button class="nav-item" data-page="jobs"><span class="ico">⏳</span>Jobs</button>
+      <button class="nav-item" data-page="files"><span class="ico">📎</span>Files</button>
+      <button class="nav-item" data-page="logs"><span class="ico">🧾</span>Logs</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="side-foot" id="side-foot"><span class="dot"></span>loading runtime…</div>
+  </aside>
+  <div class="backdrop" id="backdrop"></div>
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menu-btn" aria-label="Open navigation">☰</button>
+      <div>
+        <h1 id="page-title">Chat</h1>
+        <div class="sub" id="page-sub">Primary workspace</div>
+      </div>
+      <div class="spacer"></div>
+      <span class="pill" id="status-pill"><span class="dot"></span><span id="status-text">connecting…</span></span>
+      <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+    </header>
+    <div class="pages">
+      <section id="page-chat" class="page page-chat active" aria-label="Chat workspace">
+        <div class="chat-shell">
+          <div class="conv-rail" id="conv-rail">
+            <h2>Conversations</h2>
+            <div class="conv-list" id="conv-list" role="list"></div>
+            <button class="btn primary" id="new-conv">+ New conversation</button>
+          </div>
+          <div class="chat-col">
+            <div class="chat-toolbar">
+              <label class="sub" for="model-select">Model</label>
+              <select id="model-select" style="max-width:230px;"><option value="">loading…</option></select>
+              <span class="pill" id="model-pill"><span class="dot"></span>active</span>
+              <div class="spacer" style="flex:1"></div>
+              <button class="btn sm" id="rename-conv">Rename</button>
+              <button class="btn sm" id="clear-conv">Clear</button>
+              <button class="btn sm danger" id="delete-conv">Delete</button>
+            </div>
+            <div id="messages" aria-live="polite"></div>
+            <div class="chat-input-wrap">
+              <div class="chat-input-box">
+                <textarea id="chat-input" rows="1" placeholder="Message the agent…" aria-label="Message input"></textarea>
+                <button class="btn primary" id="send-btn">Send</button>
+              </div>
+              <div class="hint"><kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="page-overview" class="page" aria-label="Overview"></section>
+      <section id="page-sessions" class="page" aria-label="Sessions"></section>
+      <section id="page-models" class="page" aria-label="Models"></section>
+      <section id="page-profiles" class="page" aria-label="Profiles"></section>
+      <section id="page-skills" class="page" aria-label="Skills"></section>
+      <section id="page-tools" class="page" aria-label="Tools"></section>
+      <section id="page-memory" class="page" aria-label="Memory"></section>
+      <section id="page-gateways" class="page" aria-label="Gateways"></section>
+      <section id="page-config" class="page" aria-label="Config"></section>
+      <section id="page-settings" class="page" aria-label="Settings"></section>
+      <section id="page-logs" class="page" aria-label="Logs"></section>
+      <section id="page-sandbox" class="page" aria-label="Sandbox"></section>
+      <section id="page-doctor" class="page" aria-label="Doctor"></section>
+      <section id="page-jobs" class="page" aria-label="Jobs"></section>
+      <section id="page-files" class="page" aria-label="Files"></section>
+    </div>
+  </main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<dialog id="confirm-dialog">
+  <h3 id="confirm-title" style="margin:0 0 8px;">Confirm</h3>
+  <p id="confirm-text" style="margin:0;color:var(--dim);"></p>
+  <div class="dialog-actions">
+    <button class="btn ghost" id="confirm-cancel">Cancel</button>
+    <button class="btn danger" id="confirm-ok">Confirm</button>
+  </div>
+</dialog>
+<script>
+"use strict";
+/* ---------------- core helpers ---------------- */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function toast(message, kind) {
+  const el = document.createElement("div");
+  el.className = "toast " + (kind || "");
+  el.textContent = message;
+  $("#toasts").appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .3s"; }, 3200);
+  setTimeout(() => el.remove(), 3600);
+}
+
+let confirmAction = null;
+function confirmDialog(title, text, onOk) {
+  $("#confirm-title").textContent = title;
+  $("#confirm-text").textContent = text;
+  confirmAction = onOk;
+  $("#confirm-dialog").showModal();
+}
+$("#confirm-cancel").addEventListener("click", () => $("#confirm-dialog").close());
+$("#confirm-ok").addEventListener("click", () => { $("#confirm-dialog").close(); if (confirmAction) confirmAction(); });
+
+/* Every control-plane call goes through the application API. If the
+ * dashboard is served with token authentication, the operator stores the
+ * token once in localStorage; it is attached as a header, never embedded
+ * in page markup. */
+async function api(path, options) {
+  options = options || {};
+  const headers = Object.assign({}, options.headers || {});
+  const token = localStorage.getItem("picoToken");
+  if (token) headers["X-Pico-Token"] = token;
+  if (options.body) headers["content-type"] = "application/json";
+  let res;
+  try {
+    res = await fetch(path, Object.assign({}, options, { headers }));
+  } catch (err) {
+    throw { code: "NETWORK", message: "Could not reach the Pico Claw runtime." };
+  }
+  let payload = null;
+  try { payload = await res.json(); } catch (err) { /* non-JSON */ }
+  if (!res.ok || (payload && payload.ok === false)) {
+    const e = (payload && payload.error) || {};
+    throw { code: e.code || "HTTP_" + res.status, message: e.message || "Request failed (" + res.status + ")", status: res.status };
+  }
+  return payload ? payload.data : null;
+}
+
+/* ---------------- theme ---------------- */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem("picoTheme", theme);
+}
+(function initTheme() {
+  const saved = localStorage.getItem("picoTheme");
+  if (saved === "light" || saved === "dark") { applyTheme(saved); return; }
+  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+})();
+$("#theme-btn").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
+if (localStorage.getItem("picoDensity") === "compact") document.documentElement.dataset.density = "compact";
+
+/* ---------------- router ---------------- */
+const PAGE_META = {
+  chat: ["Chat", "Primary workspace"], overview: ["Overview", "Runtime at a glance"],
+  sessions: ["Sessions", "Live conversations"], models: ["Models", "Provider model discovery"],
+  profiles: ["Profiles", "Identity & context configurations"], skills: ["Skills", "Registered capabilities"],
+  tools: ["Tools", "Tool manifest"], memory: ["Memory", "Typed long-term memory"],
+  gateways: ["Gateways", "Channel adapters & lifecycle"], config: ["Config", "Structured configuration view"],
+  settings: ["Settings", "Runtime preferences"], logs: ["Logs", "Agent run inspector"],
+  sandbox: ["Sandbox", "Workspace policy & limits"],
+  doctor: ["Doctor", "Real health checks over the runtime"],
+  jobs: ["Jobs", "Background jobs: state, cancel, results"],
+  files: ["Files", "Attachments & artifacts (workspace files)"],
+};
+let currentPage = "chat";
+const pageLoaders = {};
+function showPage(name) {
+  if (!PAGE_META[name]) name = "chat";
+  currentPage = name;
+  $$(".page").forEach((el) => el.classList.remove("active"));
+  $("#page-" + name).classList.add("active");
+  $$(".nav-item").forEach((el) => el.classList.toggle("active", el.dataset.page === name));
+  $("#page-title").textContent = PAGE_META[name][0];
+  $("#page-sub").textContent = PAGE_META[name][1];
+  $("#sidebar").classList.remove("open");
+  $("#backdrop").classList.remove("show");
+  if (location.hash !== "#/" + name) location.hash = "#/" + name;
+  if (pageLoaders[name]) pageLoaders[name]();
+}
+window.addEventListener("hashchange", () => showPage((location.hash || "").replace("#/", "")));
+$$(".nav-item").forEach((el) => el.addEventListener("click", () => showPage(el.dataset.page)));
+$("#menu-btn").addEventListener("click", () => { $("#sidebar").classList.add("open"); $("#backdrop").classList.add("show"); });
+$("#backdrop").addEventListener("click", () => { $("#sidebar").classList.remove("open"); $("#backdrop").classList.remove("show"); });
+
+/* ---------------- status ---------------- */
+let runtimeStatus = null;
+async function refreshStatus() {
+  try {
+    runtimeStatus = await api("/api/status");
+    const ok = runtimeStatus.provider_connected;
+    const pill = $("#status-pill");
+    pill.className = "pill " + (ok ? "ok" : "warn");
+    $("#status-text").textContent = ok ? "runtime online" : "runtime online · provider offline";
+    $("#side-foot").innerHTML = '<span class="dot"></span>Pico Claw v' + (runtimeStatus.version || "?") +
+      " · model " + (runtimeStatus.model || "?") + " · " + (runtimeStatus.uptime_ms >= 0 ? Math.round(runtimeStatus.uptime_ms / 1000) + "s up" : "");
+  } catch (err) {
+    $("#status-pill").className = "pill err";
+    $("#status-text").textContent = "runtime unreachable";
+    $("#side-foot").innerHTML = '<span class="dot" style="background:var(--err)"></span>offline';
+  }
+}
+
+/* ---------------- chat workspace ---------------- */
+let conversations = [];
+let activeConv = localStorage.getItem("picoConv") || "dashboard";
+let modelsCache = [];
+let busy = false;
+
+function esc(text) {
+  const d = document.createElement("div"); d.textContent = text; return d.innerHTML;
+}
+function addBubble(role, content, html) {
+  const wrap = document.createElement("div");
+  wrap.className = "row " + role;
+  const b = document.createElement("div");
+  b.className = "bubble";
+  if (html) { b.innerHTML = html; } else { b.textContent = content; }
+  wrap.appendChild(b);
+  $("#messages").appendChild(wrap);
+  $$("#messages pre").forEach((pre) => {
+    if (pre.querySelector(".copy-btn")) return;
+    const btn = document.createElement("button");
+    btn.className = "copy-btn"; btn.textContent = "copy";
+    btn.addEventListener("click", () => {
+      navigator.clipboard && navigator.clipboard.writeText(pre.textContent.replace(/^copy/, ""));
+      btn.textContent = "copied"; setTimeout(() => (btn.textContent = "copy"), 1200);
+    });
+    pre.appendChild(btn);
+  });
+  const nearBottom = $("#messages").scrollHeight - $("#messages").scrollTop - $("#messages").clientHeight < 160;
+  if (nearBottom) $("#messages").scrollTop = $("#messages").scrollHeight;
+  return wrap;
+}
+function showTyping() {
+  const wrap = document.createElement("div");
+  wrap.className = "row assistant"; wrap.id = "typing-row";
+  wrap.innerHTML = '<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>';
+  $("#messages").appendChild(wrap);
+  $("#messages").scrollTop = $("#messages").scrollHeight;
+}
+function hideTyping() { const t = $("#typing-row"); if (t) t.remove(); }
+
+async function loadConversations() {
+  try {
+    conversations = await api("/api/sessions");
+    const rail = $("#conv-list");
+    rail.innerHTML = "";
+    if (!conversations.length) {
+      rail.innerHTML = '<div class="state" style="padding:14px;"><div class="big">💬</div>No conversations yet.</div>';
+    }
+    for (const conv of conversations) {
+      const item = document.createElement("button");
+      item.className = "conv-item" + (conv.chat_id === activeConv ? " active" : "");
+      item.setAttribute("role", "listitem");
+      item.innerHTML = '<span class="nm"></span><span class="badge">' + Math.max(0, conv.messages - 1) + '</span>';
+      item.querySelector(".nm").textContent = conv.chat_id;
+      item.addEventListener("click", () => { activeConv = conv.chat_id; localStorage.setItem("picoConv", activeConv); loadConversations(); loadHistory(); });
+      rail.appendChild(item);
+    }
+  } catch (err) { toast("Could not load conversations: " + err.message, "err"); }
+}
+
+async function loadHistory() {
+  const box = $("#messages");
+  box.innerHTML = '<div class="skeleton" style="width:40%"></div><div class="skeleton" style="width:65%"></div>';
+  try {
+    const detail = await api("/api/sessions/" + encodeURIComponent(activeConv));
+    box.innerHTML = "";
+    const msgs = (detail && detail.messages) || [];
+    if (!msgs.length) {
+      box.innerHTML = '<div class="state"><div class="big">🦔</div><h2 style="margin:.2em 0;">Pico Claw</h2>Start the conversation — ask anything, or ask the agent to use its tools.</div>';
+      return;
+    }
+    for (const m of msgs) addBubble(m.role, m.content, m.role === "assistant" ? null : null);
+    box.scrollTop = box.scrollHeight;
+  } catch (err) {
+    box.innerHTML = '<div class="state err"><div class="big">⚠️</div>Could not load this conversation.<br><button class="btn sm" onclick="loadHistory()">Retry</button></div>';
+  }
+}
+window.loadHistory = loadHistory;
+
+async function sendMessage() {
+  if (busy) return;
+  const input = $("#chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ""; autoGrow();
+  addBubble("user", text);
+  busy = true; $("#send-btn").disabled = true; showTyping();
+  try {
+    const reply = await api("/api/sessions/" + encodeURIComponent(activeConv) + "/send", {
+      method: "POST", body: JSON.stringify({ message: text }),
+    });
+    hideTyping();
+    addBubble("assistant", reply.response, reply.html || null);
+  } catch (err) {
+    hideTyping();
+    const row = addBubble("error", err.message + " ");
+    const retry = document.createElement("button");
+    retry.className = "btn sm"; retry.textContent = "Retry";
+    retry.addEventListener("click", () => { row.remove(); $("#chat-input").value = text; sendMessage(); });
+    row.firstChild.appendChild(retry);
+    if (err.code === "PROVIDER_UNAVAILABLE") toast("Provider is unavailable. Check the endpoint and API key.", "err");
+  } finally {
+    busy = false; $("#send-btn").disabled = false; loadConversations();
+  }
+}
+
+function autoGrow() {
+  const input = $("#chat-input");
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 180) + "px";
+}
+$("#chat-input").addEventListener("input", autoGrow);
+$("#chat-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+$("#send-btn").addEventListener("click", sendMessage);
+
+$("#new-conv").addEventListener("click", async () => {
+  const id = "conv-" + Date.now().toString(36);
+  try {
+    await api("/api/sessions", { method: "POST", body: JSON.stringify({ chat_id: id }) });
+    activeConv = id; localStorage.setItem("picoConv", id);
+    await loadConversations(); loadHistory();
+    toast("Conversation created.");
+  } catch (err) { toast(err.message, "err"); }
+});
+$("#rename-conv").addEventListener("click", () => {
+  const name = prompt("New conversation id (a-z, 0-9, . _ -):", activeConv);
+  if (!name || name === activeConv) return;
+  api("/api/sessions/" + encodeURIComponent(activeConv) + "/rename", { method: "POST", body: JSON.stringify({ chat_id: name }) })
+    .then(() => { activeConv = name; localStorage.setItem("picoConv", name); loadConversations(); toast("Renamed."); })
+    .catch((err) => toast(err.message, "err"));
+});
+$("#clear-conv").addEventListener("click", () => {
+  confirmDialog("Clear conversation", "Reset the in-memory history of '" + activeConv + "'? Durable stores are untouched.", async () => {
+    try { await api("/api/sessions/" + encodeURIComponent(activeConv) + "/clear", { method: "POST" }); loadHistory(); toast("Conversation cleared."); }
+    catch (err) { toast(err.message, "err"); }
+  });
+});
+$("#delete-conv").addEventListener("click", () => {
+  confirmDialog("Delete conversation", "Remove '" + activeConv + "' from the live session store? This cannot be undone.", async () => {
+    try {
+      await api("/api/sessions/" + encodeURIComponent(activeConv), { method: "DELETE" });
+      activeConv = "dashboard"; localStorage.setItem("picoConv", activeConv);
+      loadConversations(); loadHistory(); toast("Conversation deleted.");
+    } catch (err) { toast(err.message, "err"); }
+  });
+});
+
+async function loadModels(selectId, keepValue) {
+  const select = $(selectId || "#model-select");
+  if (!modelsCache.length) {
+    try {
+      const data = await api("/api/models");
+      modelsCache = data.models || [];
+      data.fetched_at_ms = data.fetched_at_ms; data.count = data.count;
+    } catch (err) { toast("Model discovery failed: " + err.message, "err"); }
+  }
+  const current = runtimeStatus ? runtimeStatus.model : "";
+  select.innerHTML = "";
+  if (!modelsCache.length) {
+    const opt = document.createElement("option");
+    opt.textContent = current ? current + " (configured)" : "no models discovered";
+    opt.value = ""; select.appendChild(opt);
+  }
+  for (const m of modelsCache) {
+    const opt = document.createElement("option");
+    opt.value = m.id; opt.textContent = m.display_name && m.display_name !== m.id ? m.display_name + " (" + m.id + ")" : m.id;
+    if (m.id === current) opt.selected = true;
+    select.appendChild(opt);
+  }
+}
+$("#model-select").addEventListener("change", (e) => {
+  const model = e.target.value;
+  if (!model) return;
+  confirmDialog("Switch model", "Make '" + model + "' the active model for new requests?", async () => {
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ model }) });
+      toast("Active model: " + model); refreshStatus();
+    } catch (err) { toast(err.message, "err"); loadModels("#model-select"); }
+  });
+});
+
+pageLoaders.chat = async () => { loadConversations(); loadHistory(); loadModels("#model-select"); };
+
+/* ---------------- overview ---------------- */
+function kv(k, v) { return '<div class="kv"><span class="k">' + esc(k) + '</span><span class="v">' + v + '</span></div>'; }
+function cardEl(title, body) { return '<div class="card fade"><h3>' + title + '</h3>' + body + '</div>'; }
+function stateBlock(kind, icon, text, retry) {
+  return '<div class="state ' + (kind || "") + '"><div class="big">' + icon + '</div>' + text +
+    (retry ? '<br><button class="btn sm" onclick="' + retry + '">Retry</button>' : "") + '</div>';
+}
+function skeletonBlock(n) {
+  let s = "";
+  for (let i = 0; i < (n || 4); i++) s += '<div class="skeleton" style="width:' + (55 + Math.random() * 35) + '%"></div>';
+  return s;
+}
+
+pageLoaders.overview = async () => {
+  const el = $("#page-overview");
+  el.innerHTML = '<div class="grid cols-3">' + [1, 2, 3, 4, 5, 6].map(() => '<div class="card">' + skeletonBlock(5) + '</div>').join("") + '</div>';
+  try {
+    const status = await api("/api/status");
+    const caps = await api("/api/capabilities");
+    const runs = await api("/api/runs");
+    const m = status.metrics || {};
+    const tg = (status.gateways && status.gateways.telegram) || {};
+    const capList = (caps.tools || []).filter((t) => t.enabled).map((t) => esc(t.name)).join(", ") || "none";
+    el.innerHTML =
+      '<div class="grid cols-3">' +
+      cardEl("Agent", kv("Version", esc(status.version)) + kv("Uptime", Math.round((status.uptime_ms || 0) / 1000) + "s") +
+        kv("Active profile", esc(status.active_profile || "none")) + kv("Sessions", (status.sessions && status.sessions.count) || 0)) +
+      cardEl("Provider", kv("Endpoint", esc(status.provider)) + kv("Model", esc(status.model)) +
+        kv("Connection", status.provider_connected ? '<span class="badge ok">connected</span>' : '<span class="badge warn">offline</span>') +
+        kv("Models known", (status.models && status.models.count) || 0)) +
+      cardEl("Gateways", kv("Telegram", tg.state ? esc(tg.state) : "unknown") + kv("Configured", tg.configured ? "yes" : "no") +
+        kv("Allowed users", tg.allowed_users || 0)) +
+      cardEl("Agent metrics", '<div class="metric">' + (m.messages || 0) + '<small>messages</small></div><div class="metric">' +
+        (m.tool_calls || 0) + '<small>tool calls</small></div>') +
+      cardEl("Runs", '<div class="metric trend-ok">' + (m.successful_runs || 0) + '<small>succeeded</small></div><div class="metric trend-err">' +
+        (m.failed_runs || 0) + '<small>failed</small></div>') +
+      cardEl("Capabilities", '<div style="font-size:13px;line-height:1.8">Tools: ' + capList + '<br>CLI: ' +
+        (caps.channels.cli ? "on" : "off") + ' · Dashboard: ' + (caps.channels.dashboard ? "on" : "off") +
+        ' · Telegram: ' + (caps.channels.telegram ? "on" : "off") + '</div>') +
+      '</div>' +
+      '<div class="sec-head"><h2>Recent activity</h2></div><div class="card">' +
+      (runs.length
+        ? runs.slice(0, 8).map((r) =>
+            '<div class="stage ' + (r.state === "completed" ? "done" : (r.state === "failed" ? "fail" : "run")) + '">' +
+            '<span class="mark">' + (r.state === "completed" ? "\u2713" : (r.state === "failed" ? "\u2717" : "\u2022")) + '</span>' +
+            '<span>#' + r.id + ' · ' + esc(r.state) + ' · ' + r.duration_ms + 'ms · route ' + esc(r.route) +
+            (r.error ? ' · <span class="trend-err">' + esc(r.error) + '</span>' : '') + '</span></div>').join("")
+        : stateBlock("", "\uD83D\uDDC2", "No agent runs recorded yet.")) +
+      '</div>';
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load the overview: " + esc(err.message), "pageLoaders.overview()");
+  }
+};
+
+/* ---------------- sessions ---------------- */
+pageLoaders.sessions = async () => {
+  const el = $("#page-sessions");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const list = await api("/api/sessions");
+    el.innerHTML = '<div class="card"><table><thead><tr><th>Session</th><th>Messages</th><th>Kind</th><th></th></tr></thead><tbody>' +
+      (list.length
+        ? list.map((s) =>
+            '<tr><td class="mono">' + esc(s.chat_id) + '</td><td>' + s.messages + '</td><td>' +
+            (s.chat_id === "dashboard" ? '<span class="badge acc">dashboard</span>'
+              : (/^\d+$/.test(s.chat_id) ? '<span class="badge">telegram</span>' : '<span class="badge">local</span>')) +
+            '</td><td><button class="btn sm danger" data-clear="' + esc(s.chat_id) + '">Clear</button></td></tr>').join("")
+        : '<tr><td colspan="4">' + stateBlock("", "\uD83D\uDDC2", "No live sessions yet.") + '</td></tr>') +
+      '</tbody></table></div>';
+    el.querySelectorAll("[data-clear]").forEach((btn) => btn.addEventListener("click", () => {
+      const id = btn.dataset.clear;
+      confirmDialog("Clear session", "Reset in-memory history for '" + id + "'?", async () => {
+        try { await api("/api/sessions/" + encodeURIComponent(id) + "/clear", { method: "POST" }); toast("Session cleared."); pageLoaders.sessions(); }
+        catch (err) { toast(err.message, "err"); }
+      });
+    }));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load sessions: " + esc(err.message), "pageLoaders.sessions()");
+  }
+};
+
+/* ---------------- models ---------------- */
+function capBadge(model, key) {
+  if (!model.capabilities_known) return '<span class="badge">unknown</span>';
+  return model[key] ? '<span class="badge ok">yes</span>' : '<span class="badge">no</span>';
+}
+pageLoaders.models = async () => {
+  const el = $("#page-models");
+  el.innerHTML = '<div class="card">' + skeletonBlock(5) + '</div>';
+  try {
+    const data = await api("/api/models");
+    modelsCache = data.models || [];
+    const fetched = data.fetched_at_ms ? new Date(data.fetched_at_ms).toLocaleString() : "never";
+    el.innerHTML =
+      '<div class="filters"><button class="btn sm primary" id="refresh-models">Refresh models</button>' +
+      '<span class="pill"><span class="dot"></span>last fetched: ' + esc(fetched) + '</span>' +
+      '<span class="pill"><span class="dot"></span>active: ' + esc(data.active_model) + '</span></div>' +
+      '<div class="card"><table><thead><tr><th>Model</th><th>Provider</th><th>Streaming</th><th>Vision</th><th>Tool calling</th><th>Context</th></tr></thead><tbody>' +
+      (modelsCache.length
+        ? modelsCache.map((m) =>
+            '<tr><td><b>' + esc(m.display_name || m.id) + '</b>' +
+            (m.id !== (m.display_name || m.id) ? ' <span class="mono dim">' + esc(m.id) + '</span>' : "") +
+            (m.id === data.active_model ? ' <span class="badge acc">active</span>' : "") + '</td><td>' + esc(m.provider || "\u2014") + '</td>' +
+            '<td>' + capBadge(m, "streaming") + '</td><td>' + capBadge(m, "vision") + '</td><td>' + capBadge(m, "tool_calling") + '</td>' +
+            '<td>' + (m.context_limit ? m.context_limit.toLocaleString() : "\u2014") + '</td></tr>').join("")
+        : '<tr><td colspan="6">' + stateBlock("", "\uD83E\uDDE0", "No models discovered yet. Refresh queries the provider models endpoint.") + '</td></tr>') +
+      '</tbody></table></div>';
+    $("#refresh-models").addEventListener("click", async () => {
+      modelsCache = [];
+      try { await api("/api/models/refresh", { method: "POST" }); toast("Model list refreshed."); pageLoaders.models(); refreshStatus(); }
+      catch (err) { toast(err.message, "err"); }
+    });
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load models: " + esc(err.message), "pageLoaders.models()");
+  }
+};
+
+/* ---------------- profiles ---------------- */
+pageLoaders.profiles = async () => {
+  const el = $("#page-profiles");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const list = await api("/api/profiles");
+    el.innerHTML =
+      '<div class="filters"><button class="btn sm primary" id="new-profile">+ New profile</button>' +
+      '<span class="sub">Profiles manage identity, memory and instructions. Files are constrained to config/profiles.</span></div>' +
+      '<div class="grid cols-2" id="profile-cards">' +
+      (list.length
+        ? list.map((pr) =>
+            cardEl(esc(pr.name),
+              kv("Id", '<span class="mono">' + esc(pr.id) + '</span>') + kv("Description", esc(pr.description || "\u2014")) +
+              '<div class="row-actions" style="margin-top:10px">' +
+              (pr.active ? '<span class="badge ok">active</span> ' : "") +
+              '<button class="btn sm" data-edit="' + esc(pr.id) + '">Edit</button>' +
+              (pr.active ? "" : '<button class="btn sm primary" data-activate="' + esc(pr.id) + '">Activate</button>') +
+              '<button class="btn sm" data-dup="' + esc(pr.id) + '">Duplicate</button>' +
+              '<button class="btn sm danger" data-del="' + esc(pr.id) + '">Delete</button></div>')).join("")
+        : stateBlock("", "\uD83C\uDFAD", "No profiles yet. Create one to customize identity and instructions.")) +
+      '</div><div id="profile-editor"></div>';
+    $("#new-profile").addEventListener("click", () => {
+      const id = prompt("Profile id (a-z, 0-9, - _):", "profile-" + Date.now().toString(36));
+      if (!id) return;
+      const name = prompt("Display name:", id) || id;
+      api("/api/profiles", { method: "POST", body: JSON.stringify({ id, name }) })
+        .then(() => { toast("Profile created."); pageLoaders.profiles(); })
+        .catch((err) => toast(err.message, "err"));
+    });
+    el.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => editProfile(b.dataset.edit)));
+    el.querySelectorAll("[data-activate]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.activate;
+      confirmDialog("Activate profile", "Materialize '" + id + "' into SOUL.md / MEMORY.md and apply its instruction sections?", async () => {
+        try { await api("/api/profiles/" + encodeURIComponent(id) + "/activate", { method: "POST" }); toast("Profile activated."); pageLoaders.profiles(); refreshStatus(); }
+        catch (err) { toast(err.message, "err"); }
+      });
+    }));
+    el.querySelectorAll("[data-dup]").forEach((b) => b.addEventListener("click", async () => {
+      const nid = prompt("New profile id:", b.dataset.dup + "-copy");
+      if (!nid) return;
+      try { await api("/api/profiles", { method: "POST", body: JSON.stringify({ id: nid, source: b.dataset.dup, name: nid }) }); toast("Duplicated."); pageLoaders.profiles(); }
+      catch (err) { toast(err.message, "err"); }
+    }));
+    el.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.del;
+      confirmDialog("Delete profile", "Permanently delete profile '" + id + "'? The active profile cannot be deleted.", async () => {
+        try { await api("/api/profiles/" + encodeURIComponent(id), { method: "DELETE" }); toast("Deleted."); pageLoaders.profiles(); }
+        catch (err) { toast(err.message, "err"); }
+      });
+    }));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load profiles: " + esc(err.message), "pageLoaders.profiles()");
+  }
+};
+
+const PROFILE_FILES = ["soul.md", "memory.md", "instructions.md", "behavior.md", "custom.md"];
+async function editProfile(id) {
+  try {
+    const profile = await api("/api/profiles/" + encodeURIComponent(id));
+    let current = "soul.md";
+    const editor = $("#profile-editor");
+    editor.innerHTML =
+      '<div class="sec-head"><h2>Edit "' + esc(id) + '"</h2><div class="spacer"></div>' +
+      PROFILE_FILES.map((k) => '<button class="chip" data-file="' + k + '">' + k + '</button>').join("") + '</div>' +
+      '<div class="card"><textarea id="profile-text" class="editor" spellcheck="false"></textarea>' +
+      '<div class="row-actions" style="margin-top:12px"><button class="btn primary" id="save-profile">Save</button>' +
+      '<span class="sub" id="profile-save-hint"></span></div></div>';
+    const box = $("#profile-text");
+    box.value = profile["soul.md"] || "";
+    editor.querySelectorAll(".chip").forEach((chip) => chip.addEventListener("click", () => {
+      editor.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      current = chip.dataset.file;
+      box.value = profile[current] || "";
+      $("#profile-save-hint").textContent = "";
+    }));
+    $("#save-profile").addEventListener("click", async () => {
+      try {
+        await api("/api/profiles/" + encodeURIComponent(id), { method: "PUT", body: JSON.stringify({ file: current, content: box.value }) });
+        profile[current] = box.value;
+        $("#profile-save-hint").textContent = "Saved " + current + ".";
+        toast("Saved " + current + ".");
+      } catch (err) { toast(err.message, "err"); }
+    });
+    editor.scrollIntoView({ behavior: "smooth" });
+  } catch (err) { toast(err.message, "err"); }
+}
+
+/* ---------------- skills ---------------- */
+pageLoaders.skills = async () => {
+  const el = $("#page-skills");
+  el.innerHTML = '<div class="card">' + skeletonBlock(3) + '</div>';
+  try {
+    const list = await api("/api/skills");
+    el.innerHTML = '<div class="card"><table><thead><tr><th>Skill</th><th>Tool</th><th>Permission</th><th>State</th><th></th></tr></thead><tbody>' +
+      list.map((s) =>
+        '<tr><td><b>' + esc(s.id) + '</b><br><span class="sub">' + esc(s.description) + '</span></td>' +
+        '<td>' + (s.tool ? '<span class="mono">' + esc(s.tool) + '</span>' : '<span class="badge">reasoning only</span>') + '</td>' +
+        '<td>' + esc(s.permission) + '</td>' +
+        '<td>' + (s.enabled ? '<span class="badge ok">enabled</span>' : '<span class="badge">disabled</span>') + '</td>' +
+        '<td><button class="btn sm ' + (s.enabled ? "danger" : "primary") + '" data-skill="' + esc(s.id) + '" data-next="' + (s.enabled ? "disable" : "enable") + '">' +
+        (s.enabled ? "Disable" : "Enable") + '</button></td></tr>').join("") +
+      '</tbody></table></div>' +
+      '<div class="hint" style="text-align:left">Skills are metadata from the runtime registry; disabling a skill also disables its linked tool for the agent.</div>';
+    el.querySelectorAll("[data-skill]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        await api("/api/skills/" + encodeURIComponent(btn.dataset.skill) + "/" + btn.dataset.next, { method: "POST" });
+        toast("Skill " + btn.dataset.next + "d."); pageLoaders.skills();
+      } catch (err) { toast(err.message, "err"); }
+    }));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load skills: " + esc(err.message), "pageLoaders.skills()");
+  }
+};
+
+/* ---------------- tools ---------------- */
+pageLoaders.tools = async () => {
+  const el = $("#page-tools");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const list = await api("/api/tools");
+    el.innerHTML = '<div class="card"><table><thead><tr><th>Tool</th><th>Parameters</th><th>Permission</th><th>Risk</th><th>State</th><th></th></tr></thead><tbody>' +
+      list.map((t) =>
+        '<tr><td><b>' + esc(t.name) + '</b><br><span class="sub">' + esc(t.description) + '</span></td>' +
+        '<td>' + (t.parameters.length
+          ? t.parameters.map((p) => '<span class="mono">' + esc(p.name) + '</span>' + (p.required ? "" : " <span class=\'sub\'>(optional)</span>")).join("<br>")
+          : '<span class="sub">none</span>') + '</td>' +
+        '<td><span class="badge ' + (t.permission === "network" ? "warn" : (t.permission === "elevated" ? "warn" : "ok")) + '">' + esc(t.permission) + '</span></td>' +
+        '<td><span class="badge ' + (t.risk === "high" ? "err" : (t.risk === "medium" ? "warn" : "ok")) + '">' + esc(t.risk) + '</span></td>' +
+        '<td>' + (t.enabled ? '<span class="badge ok">enabled</span>' : '<span class="badge">disabled</span>') + '</td>' +
+        '<td><button class="btn sm ' + (t.enabled ? "danger" : "primary") + '" data-tool="' + esc(t.name) + '" data-next="' + (t.enabled ? "disable" : "enable") + '">' +
+        (t.enabled ? "Disable" : "Enable") + '</button></td></tr>').join("") +
+      '</tbody></table></div>';
+    el.querySelectorAll("[data-tool]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        await api("/api/tools/" + encodeURIComponent(btn.dataset.tool) + "/" + btn.dataset.next, { method: "POST" });
+        toast("Tool " + btn.dataset.next + "d."); pageLoaders.tools();
+      } catch (err) { toast(err.message, "err"); }
+    }));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load tools: " + esc(err.message), "pageLoaders.tools()");
+  }
+};
+
+/* ---------------- memory ---------------- */
+let memoryFilter = "";
+pageLoaders.memory = async () => {
+  const el = $("#page-memory");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  const types = ["", "semantic", "episodic", "procedural", "error", "preference"];
+  try {
+    const data = await api("/api/memory");
+    const counts = data.counts || {};
+    el.innerHTML =
+      '<div class="filters">' + types.map((t) =>
+        '<button class="chip' + (memoryFilter === t ? " active" : "") + '" data-type="' + t + '">' + (t || "all") + ' (' + (t ? (counts[t] || 0) : Object.values(counts).reduce((a, b) => a + b, 0)) + ')</button>').join("") +
+      '<span class="spacer" style="flex:1"></span>' +
+      '<button class="btn sm" id="mem-search-btn">Search</button>' +
+      '<button class="btn sm danger" id="mem-clear-btn">Clear' + (memoryFilter ? " " + memoryFilter : " all") + '</button></div>' +
+      '<div id="mem-results"></div>' +
+      '<div class="card"><table><thead><tr><th>Type</th><th>Content</th><th>Importance</th><th>Id</th><th></th></tr></thead><tbody>' +
+      (data.entries.length
+        ? data.entries.map((e) =>
+            '<tr><td><span class="badge">' + esc(e.type) + '</span></td><td>' + esc(e.content) + '</td>' +
+            '<td>' + Number(e.importance || 0).toFixed(1) + '</td><td class="mono">' + e.id + '</td>' +
+            '<td><button class="btn sm danger" data-forget="' + e.id + '">Forget</button></td></tr>').join("")
+        : '<tr><td colspan="5">' + stateBlock("", "\uD83D\uDCDA", "No memory entries" + (memoryFilter ? " of this type" : "") + ".") + '</td></tr>') +
+      '</tbody></table></div>';
+    el.querySelectorAll(".chip").forEach((chip) => chip.addEventListener("click", () => { memoryFilter = chip.dataset.type; pageLoaders.memory(); }));
+    el.querySelectorAll("[data-forget]").forEach((btn) => btn.addEventListener("click", () => {
+      confirmDialog("Forget memory", "Permanently forget entry #" + btn.dataset.forget + "?", async () => {
+        try { await api("/api/memory/forget", { method: "POST", body: JSON.stringify({ id: Number(btn.dataset.forget) }) }); toast("Entry forgotten."); pageLoaders.memory(); }
+        catch (err) { toast(err.message, "err"); }
+      });
+    }));
+    $("#mem-search-btn").addEventListener("click", async () => {
+      const query = prompt("Search memory for:");
+      if (!query) return;
+      try {
+        const res = await api("/api/memory/search", { method: "POST", body: JSON.stringify({ query }) });
+        $("#mem-results").innerHTML = '<div class="card fade"><h3>Matches for "' + esc(query) + '"</h3>' +
+          (res.matches.length ? res.matches.map((e) => '<div class="stage done"><span class="mark">\u2022</span><span><span class="badge">' + esc(e.type) + '</span> ' + esc(e.content) + '</span></div>').join("")
+            : '<div class="sub">No matches.</div>') + '</div>';
+      } catch (err) { toast(err.message, "err"); }
+    });
+    $("#mem-clear-btn").addEventListener("click", () => {
+      confirmDialog("Clear memory", "Clear " + (memoryFilter ? "all '" + memoryFilter + "' entries" : "ALL memory entries") + "? This cannot be undone.", async () => {
+        try {
+          await api("/api/memory/clear", { method: "POST", body: JSON.stringify({ type: memoryFilter }) });
+          toast("Memory cleared."); pageLoaders.memory();
+        } catch (err) { toast(err.message, "err"); }
+      });
+    });
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load memory: " + esc(err.message), "pageLoaders.memory()");
+  }
+};
+
+/* ---------------- gateways ---------------- */
+pageLoaders.gateways = async () => {
+  const el = $("#page-gateways");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const data = await api("/api/gateways");
+    el.innerHTML = '<div class="grid cols-3">' + (data.gateways || []).map((g) => {
+      if (!g.adapter) {
+        return cardEl(esc(g.name) + ' <span class="badge">planned</span>',
+          '<div class="state" style="padding:16px;"><div class="big">\uD83D\uDDDE</div>No adapter yet. This transport is shown for planning only and is not functional.</div>');
+      }
+      const stateBadge = g.running ? '<span class="badge ok">running</span>'
+        : (g.state === "error" ? '<span class="badge err">error</span>'
+        : (g.configured ? '<span class="badge warn">' + esc(g.state) + '</span>' : '<span class="badge">not configured</span>'));
+      let bot = "";
+      if (g.bot && g.bot.username) bot = kv("Bot", "@" + esc(g.bot.username) + " (" + g.bot.id + ")");
+      return cardEl("Telegram " + stateBadge,
+        kv("Configured", g.configured ? '<span class="badge ok">token set</span>' : '<span class="badge">no token</span>') +
+        kv("Enabled", g.enabled ? "yes" : "no") +
+        kv("Can host loop", g.can_host ? "yes" : "no (serve process)") +
+        kv("Allowed users", g.allowed_users) + bot +
+        (g.last_error ? kv("Last error", '<span class="trend-err">' + esc(g.last_error) + '</span>') : "") +
+        '<div class="row-actions" style="margin-top:12px">' +
+        '<button class="btn sm" data-gw="enable">Enable</button>' +
+        '<button class="btn sm" data-gw="disable">Disable</button>' +
+        '<button class="btn sm" data-gw="start">Start</button>' +
+        '<button class="btn sm" data-gw="stop">Stop</button>' +
+        '<button class="btn sm" data-gw="restart">Restart</button>' +
+        '<button class="btn sm primary" data-gw="test">Test connection</button></div>');
+    }).join("") + '</div>' +
+      '<div class="hint" style="text-align:left">Lifecycle note: this dashboard process is single-threaded and shares one agent stack, so it cannot host the Telegram poll loop. Run the channel with <span class="mono">pico_claw channel telegram</span>; Test connection performs a real API check.</div>';
+    el.querySelectorAll("[data-gw]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        await api("/api/gateways/telegram/" + btn.dataset.gw, { method: "POST" });
+        toast("Gateway action sent: " + btn.dataset.gw); pageLoaders.gateways();
+      } catch (err) { toast(err.code + ": " + err.message, "err"); pageLoaders.gateways(); }
+    }));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load gateways: " + esc(err.message), "pageLoaders.gateways()");
+  }
+};
+
+/* ---------------- config ---------------- */
+pageLoaders.sandbox = async () => {
+  const el = $("#page-sandbox");
+  try {
+    const data = await api("/api/sandbox");
+    const row = (k, v) => "<div class='stage'><span class='mark'>" + esc(k) + "</span><span>" + esc(String(v)) + "</span></div>";
+    const limitRow = (k, v) => row(k, v);
+    const policy = data.policy || {};
+    const limits = data.limits || {};
+    let html = "";
+    if (!data.enabled) {
+      html += stateBlock("warn", "📦", "Sandbox runtime is not active in this process.", "pageLoaders.sandbox()");
+    } else {
+      html += "<div class='sec-head'><h2>Workspace</h2><span class='spacer'></span>" +
+        "<span class='pill ok'><span class='dot'></span>active</span></div>";
+      html += "<div class='card'><div class='row-actions'>" + row("Root", "./" + data.root + "/") +
+        row("Read", policy.read ? "granted" : "denied") + row("Write", policy.write ? "granted" : "denied") +
+        row("Execute", policy.execute ? "granted" : "denied") + row("Network", policy.network ? "granted" : "disabled") + "</div>";
+      html += "<div class='hint'>Every agent path is validated (no absolute paths, no <code>..</code>, no Windows device names) and resolved " +
+        "without following symlinks or junctions; all operations stay inside the workspace.</div></div>";
+      html += "<div class='sec-head'><h2>Executable commands</h2></div>";
+      const cmds = (policy.executable_commands || []);
+      html += "<div class='card'><div class='row-actions'>" +
+        (cmds.length ? cmds.map((c) => "<span class='chip'>" + esc(c) + "</span>").join(" ") : "<em>none — process.exec is denied</em>") + "</div></div>";
+      html += "<div class='sec-head'><h2>Environment names forwarded</h2></div>";
+      const envs = (policy.env_names || []);
+      html += "<div class='card'><div class='row-actions'>" +
+        (envs.length ? envs.map((c) => "<span class='chip'>" + esc(c) + "</span>").join(" ") : "<em>none</em>") +
+        "<div class='hint'>Values are never shown; only variable names are forwarded to allowlisted commands.</div></div></div>";
+      html += "<div class='sec-head'><h2>Resource limits</h2></div>";
+      const mb = (n) => (n >= 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + " MB" : n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B");
+      html += "<div class='card'><div class='row-actions'>" +
+        limitRow("max read", mb(limits.max_read_bytes)) + limitRow("max write", mb(limits.max_write_bytes)) +
+        limitRow("max stdout/stderr", mb(limits.max_output_bytes)) + limitRow("archive size", mb(limits.max_archive_bytes)) +
+        limitRow("extract total", mb(limits.max_extracted_bytes)) + limitRow("entries", limits.max_entries) +
+        limitRow("exec timeout", limits.exec_timeout_ms + " ms") + "</div></div>";
+    }
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load sandbox: " + esc(err.message), "pageLoaders.sandbox()");
+  }
+};
+
+/* ---------------- doctor ---------------- */
+pageLoaders.doctor = async () => {
+  const el = $("#page-doctor");
+  el.innerHTML = '<div class="card">' + skeletonBlock(6) + '</div>';
+  try {
+    const data = await api("/api/doctor");
+    const statusPill = (s) => {
+      const cls = s === "pass" ? "ok" : (s === "fail" ? "err" : (s === "warn" ? "warn" : ""));
+      return "<span class='pill " + cls + "'><span class='dot'></span>" + esc(s) + "</span>";
+    };
+    let html = "<div class='sec-head'><h2>Overall</h2><span class='spacer'></span>" + statusPill(data.overall) + "</div>";
+    html += "<div class='card'>";
+    (data.checks || []).forEach((check) => {
+      html += "<div class='stage'><span class='mark'>" + esc(check.name) + "</span><span>" +
+        statusPill(check.status) + " " + esc(check.detail) + "</span></div>";
+    });
+    html += "<div class='hint'>Every check performs real work: files are written and deleted, the provider " +
+      "API is called, Telegram receives a getMe when configured. unavailable means not configured here.</div></div>";
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not run doctor: " + esc(err.message), "pageLoaders.doctor()");
+  }
+};
+
+/* ---------------- jobs ---------------- */
+pageLoaders.jobs = async () => {
+  const el = $("#page-jobs");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const data = await api("/api/jobs");
+    let html = "<div class='sec-head'><h2>Background jobs</h2><span class='spacer'></span>" +
+      "<button class='btn ghost' id='jobs-doctor-btn'>Run doctor as job</button></div><div class='card'>";
+    (data.jobs || []).forEach((job) => {
+      const cls = job.state === "completed" ? "ok" : (job.state === "failed" || job.state === "timed_out" ? "err" : (job.state === "cancelled" ? "" : "warn"));
+      html += "<div class='stage'><span class='mark'>" + esc(job.id) + " · " + esc(job.kind) + "</span><span>" +
+        "<span class='pill " + cls + "'><span class='dot'></span>" + esc(job.state) + "</span> " +
+        esc(job.title) + " · progress " + job.progress + "%" +
+        (job.run_id ? " · run " + esc(job.run_id) : "") +
+        (job.error ? " · error: " + esc(job.error) : "") +
+        (job.state === "queued" || job.state === "running" || job.state === "cancelling" ?
+          " <button class='btn ghost' data-cancel-job='" + esc(job.id) + "'>Cancel</button>" : "") +
+        "</span></div>";
+    });
+    if (!(data.jobs || []).length) html += "<em>No jobs yet. Doctor can be queued as a background job.</em>";
+    html += "<div class='hint'>Cancellation is cooperative: the runtime records cancelled only when the job " +
+      "actually stops. A finished job never reports cancelled.</div></div>";
+    el.innerHTML = html;
+    const doctorBtn = $("#jobs-doctor-btn");
+    if (doctorBtn) doctorBtn.onclick = async () => {
+      await api("/api/jobs", { kind: "doctor" });
+      toast("Doctor job queued");
+      pageLoaders.jobs();
+    };
+    $$("#page-jobs [data-cancel-job]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await fetch("/api/jobs/" + btn.dataset.cancelJob + "/cancel", { method: "POST" });
+          toast("Cancel requested");
+          pageLoaders.jobs();
+        } catch (err) { toast("Cancel failed"); }
+      };
+    });
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load jobs: " + esc(err.message), "pageLoaders.jobs()");
+  }
+};
+
+/* ---------------- files: attachments & artifacts ---------------- */
+pageLoaders.files = async () => {
+  const el = $("#page-files");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const att = await api("/api/attachments");
+    const art = await api("/api/artifacts");
+    const kb = (n) => (n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B");
+    let html = "<div class='sec-head'><h2>Attachments</h2><span class='spacer'></span>" +
+      "<input type='file' id='attach-file' style='display:none'>" +
+      "<button class='btn ghost' id='attach-btn'>Upload file</button></div><div class='card'>";
+    (att.attachments || []).forEach((a) => {
+      html += "<div class='stage'><span class='mark'>" + esc(a.safe_name) + "</span><span>" +
+        esc(a.mime) + " · " + kb(a.size) + " · sha256 " + esc(a.sha256_hex.slice(0, 12)) + "… · " +
+        esc(a.status) +
+        " <button class='btn ghost' data-del-att='" + esc(a.id) + "'>Delete</button></span></div>";
+    });
+    if (!(att.attachments || []).length) html += "<em>No attachments uploaded yet.</em>";
+    html += "<div class='hint'>Uploads live in workspace/uploads/&lt;id&gt;/ with a content-derived type and " +
+      "SHA-256. Names are validated (no traversal, no reserved device names) and treated as data.</div></div>";
+
+    html += "<div class='sec-head'><h2>Artifacts</h2></div><div class='card'><div class='row-actions'>" +
+      "<input id='art-filename' placeholder='filename.txt' style='flex:1;min-width:160px;'>" +
+      "<input id='art-content' placeholder='content' style='flex:2;min-width:220px;'>" +
+      "<select id='art-kind'><option value='txt'>txt</option><option value='md'>md</option>" +
+      "<option value='json'>json</option><option value='csv'>csv</option></select>" +
+      "<button class='btn ghost' id='art-create'>Create</button></div>";
+    (art.artifacts || []).forEach((a) => {
+      html += "<div class='stage'><span class='mark'>" + esc(a.filename) + "</span><span>" +
+        esc(a.kind) + " · " + kb(a.size) + " · sha256 " + esc(a.sha256_hex.slice(0, 12)) + "… · " +
+        "<a href='/api/artifacts/" + esc(a.id) + "/content'>download</a>" +
+        " <button class='btn ghost' data-del-art='" + esc(a.id) + "'>Delete</button></span></div>";
+    });
+    if (!(art.artifacts || []).length) html += "<em>No artifacts yet.</em>";
+    html += "<div class='hint'>Supported: txt, md, json, csv, zip. PDF/DOCX/PPTX/XLSX are reported as " +
+      "unsupported — the runtime never writes a fake file.</div></div>";
+    el.innerHTML = html;
+
+    const fileInput = $("#attach-file");
+    $("#attach-btn").onclick = () => fileInput.click();
+    fileInput.onchange = async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        await fetch("/api/attachments?name=" + encodeURIComponent(file.name), { method: "POST", body: file });
+        toast("Uploaded");
+        pageLoaders.files();
+      } catch (err) { toast("Upload failed"); }
+    };
+    $$("#page-files [data-del-att]").forEach((btn) => {
+      btn.onclick = async () => {
+        try { await fetch("/api/attachments/" + btn.dataset.delAtt, { method: "DELETE" }); pageLoaders.files(); }
+        catch (err) { toast("Delete failed"); }
+      };
+    });
+    $("#art-create").onclick = async () => {
+      try {
+        await api("/api/artifacts", {
+          kind: $("#art-kind").value, filename: $("#art-filename").value, content: $("#art-content").value,
+        });
+        toast("Artifact created");
+        pageLoaders.files();
+      } catch (err) { toast("Create failed: " + err.message); }
+    };
+    $$("#page-files [data-del-art]").forEach((btn) => {
+      btn.onclick = async () => {
+        try { await fetch("/api/artifacts/" + btn.dataset.delArt, { method: "DELETE" }); pageLoaders.files(); }
+        catch (err) { toast("Delete failed"); }
+      };
+    });
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load files: " + esc(err.message), "pageLoaders.files()");
+  }
+};
+
+pageLoaders.config = async () => {
+  const el = $("#page-config");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const cfg = await api("/api/config");
+    el.innerHTML = '<div class="grid cols-3">' +
+      cardEl("Provider",
+        kv("Endpoint", esc(cfg.provider.endpoint)) +
+        kv("Configured", cfg.provider.configured ? '<span class="badge ok">yes</span>' : '<span class="badge warn">incomplete</span>') +
+        kv("API key", cfg.provider.api_key_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge warn">missing</span>') +
+        kv("Active model", esc(cfg.provider.active_model)) +
+        kv("Models known", cfg.provider.model_count)) +
+      cardEl("Telegram",
+        kv("Configured", cfg.telegram.configured ? '<span class="badge ok">yes</span>' : '<span class="badge">no</span>') +
+        kv("Token", cfg.telegram.token_set ? '<span class="badge ok">set (hidden)</span>' : '<span class="badge">not set</span>') +
+        kv("Enabled", cfg.telegram.enabled ? "yes" : "no") +
+        kv("State", esc(cfg.telegram.state)) +
+        kv("Allowed users", cfg.telegram.allowed_users)) +
+      cardEl("Runtime",
+        kv("Workspace", esc(cfg.runtime.workspace)) +
+        kv("Data directory", esc(cfg.runtime.data_dir)) +
+        kv("Dashboard", esc(cfg.runtime.dashboard_host) + ":" + cfg.runtime.dashboard_port) +
+        kv("Auth", cfg.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">loopback, no token</span>')) +
+      (cfg.owner ? cardEl("Owner context",
+        kv("SOUL.md", esc(cfg.owner.soul)) + kv("MEMORY.md", esc(cfg.owner.memory)) + kv("Active profile", esc(cfg.owner.active_profile || "none"))) : "") +
+      cardEl("Routing",
+        kv("Teacher", cfg.routing.teacher_configured ? "configured" : "disabled") +
+        kv("Local-only mode", cfg.routing.local_only ? "on" : "off")) +
+      '</div>';
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load config: " + esc(err.message), "pageLoaders.config()");
+  }
+};
+
+/* ---------------- settings ---------------- */
+pageLoaders.settings = async () => {
+  const el = $("#page-settings");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const s = await api("/api/settings");
+    const theme = localStorage.getItem("picoTheme") || "system";
+    el.innerHTML = '<div class="grid cols-2">' +
+      cardEl("Appearance",
+        '<div class="kv"><span class="k">Theme</span><span class="v"><select id="set-theme"><option value="dark">dark</option><option value="light">light</option></select></span></div>' +
+        '<div class="kv"><span class="k">Density</span><span class="v"><select id="set-density"><option value="cozy">cozy</option><option value="compact">compact</option></select></span></div>' +
+        '<div class="sub" style="margin-top:8px">Appearance is stored per browser; system preference is used until you choose.</div>') +
+      cardEl("Agent",
+        '<div class="kv"><span class="k">Active model</span><span class="v"><input id="set-model" value="' + esc(s.model) + '" style="max-width:200px"></span></div>' +
+        '<div class="kv"><span class="k">Source</span><span class="v">' + esc(s.model_source) + '</span></div>' +
+        '<div class="kv"><span class="k">Provider attempts per task (1-5)</span><span class="v"><input id="set-attempts" type="number" min="1" max="5" value="' + s.task_max_attempts + '" style="width:70px"></span></div>' +
+        '<div class="row-actions" style="margin-top:10px"><button class="btn primary" id="save-agent">Apply</button><span class="sub" id="agent-hint"></span></div>') +
+      cardEl("Security",
+        kv("Bind address", esc(s.runtime.dashboard_host) + ":" + s.runtime.dashboard_port) +
+        kv("Authentication", s.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">off (loopback)</span>') +
+        kv("Origin validation", "state-changing requests") +
+        kv("Token header", "X-Pico-Token / Authorization: Bearer") +
+        '<div class="sub" style="margin-top:8px">Remote bind requires PICO_CLAW_DASHBOARD_TOKEN. Browsers store it once: <span class="mono">localStorage.picoToken</span>.</div>') +
+      cardEl("Runtime & limits",
+        kv("Workspace", esc(s.runtime.workspace)) +
+        kv("Data directory", esc(s.runtime.data_dir)) +
+        kv("Log level", esc(s.runtime.log_level)) +
+        kv("Max attempts cap", s.limits.max_attempts) +
+        kv("Max model length", s.limits.max_model_len)) +
+      '</div>';
+    $("#set-theme").value = theme === "light" ? "light" : "dark";
+    $("#set-density").value = document.documentElement.dataset.density === "compact" ? "compact" : "cozy";
+    $("#set-theme").addEventListener("change", (e) => { applyTheme(e.target.value); });
+    $("#set-density").addEventListener("change", (e) => {
+      if (e.target.value === "compact") document.documentElement.dataset.density = "compact";
+      else delete document.documentElement.dataset.density;
+      localStorage.setItem("picoDensity", e.target.value);
+    });
+    $("#save-agent").addEventListener("click", async () => {
+      const model = $("#set-model").value.trim();
+      const attempts = Number($("#set-attempts").value || 1);
+      const body = { task_max_attempts: attempts };
+      if (model !== s.model) body.model = model;
+      try {
+        await api("/api/settings", { method: "PUT", body: JSON.stringify(body) });
+        $("#agent-hint").textContent = "Saved.";
+        toast("Settings applied."); refreshStatus();
+      } catch (err) { toast(err.message, "err"); }
+    });
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load settings: " + esc(err.message), "pageLoaders.settings()");
+  }
+};
+
+/* ---------------- logs (run inspector) ---------------- */
+pageLoaders.logs = async () => {
+  const el = $("#page-logs");
+  el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
+  try {
+    const runs = await api("/api/runs");
+    el.innerHTML = '<div class="card"><table><thead><tr><th>Run</th><th>State</th><th>Route</th><th>Duration</th><th>Started</th><th>Error</th><th></th></tr></thead><tbody>' +
+      (runs.length
+        ? runs.map((r) =>
+            '<tr><td class="mono">#' + r.id + '</td>' +
+            '<td>' + (r.state === "completed" ? '<span class="badge ok">completed</span>' : (r.state === "failed" ? '<span class="badge err">failed</span>' : '<span class="badge">' + esc(r.state) + '</span>')) + '</td>' +
+            '<td>' + esc(r.route) + '</td><td>' + r.duration_ms + 'ms</td>' +
+            '<td>' + (r.started_at_ms ? new Date(r.started_at_ms).toLocaleTimeString() : "\u2014") + '</td>' +
+            '<td>' + (r.error ? '<span class="trend-err">' + esc(r.error) + '</span>' : "\u2014") + '</td>' +
+            '<td><button class="btn sm" data-run="' + r.id + '">Inspect</button></td></tr>').join("")
+        : '<tr><td colspan="7">' + stateBlock("", "\uD83E\uFE9F", "No runs recorded yet. Chat with the agent to generate runs.") + '</td></tr>') +
+      '</tbody></table></div><div id="run-detail"></div>';
+    el.querySelectorAll("[data-run]").forEach((btn) => btn.addEventListener("click", () => inspectRun(btn.dataset.run)));
+  } catch (err) {
+    el.innerHTML = stateBlock("err", "\u26a0", "Could not load runs: " + esc(err.message), "pageLoaders.logs()");
+  }
+};
+
+async function inspectRun(id) {
+  try {
+    const r = await api("/api/runs/" + id);
+    const stages = [];
+    stages.push({ label: "Context assembled", state: "done", note: (r.planned_steps || 0) + " planned steps" });
+    for (const s of (r.steps || [])) {
+      stages.push({ label: (s.tool ? "Plan: " + s.tool : "Plan step " + s.step_id), state: s.state === "completed" ? "done" : (s.state === "failed" ? "fail" : "run"), note: s.duration_ms + "ms" });
+    }
+    for (const c of (r.tool_calls || [])) {
+      stages.push({ label: "Tool: " + c.tool, state: c.state === "completed" ? "done" : (c.state === "failed" ? "fail" : "run"), note: c.state + " · " + c.duration_ms + "ms · input #" + c.input_hash });
+    }
+    for (const a of (r.attempts || [])) {
+      stages.push({ label: "Provider attempt " + a.attempt, state: a.ok ? "done" : "fail", note: a.duration_ms + "ms · in " + a.input_bytes + "B · out " + a.output_bytes + "B" });
+    }
+    stages.push({ label: "Response", state: r.state === "completed" ? "done" : (r.state === "failed" ? "fail" : "run"), note: r.state + " · " + r.duration_ms + "ms" });
+    if (r.escalation) stages.push({ label: "Teacher escalation", state: r.escalation.escalated ? "done" : "run", note: esc(r.escalation.reason) + (r.escalation.model ? " · " + r.escalation.model : "") });
+    $("#run-detail").innerHTML = '<div class="card fade"><h3>Run #' + r.id + ' — ' + esc(r.state) + '</h3>' +
+      stages.map((s) => '<div class="stage ' + s.state + '"><span class="mark">' +
+        (s.state === "done" ? "\u2713" : (s.state === "fail" ? "\u2717" : "\u2022")) + '</span><span>' + esc(s.label) +
+        ' <span class="sub">— ' + s.note + '</span></span></div>').join("") + '</div>';
+    $("#run-detail").scrollIntoView({ behavior: "smooth" });
+  } catch (err) { toast(err.message, "err"); }
+}
+
+/* ---------------- init ---------------- */
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { $("#sidebar").classList.remove("open"); $("#backdrop").classList.remove("show"); }
+});
+refreshStatus().then(() => {
+  const initial = (location.hash || "").replace("#/", "") || "chat";
+  showPage(PAGE_META[initial] ? initial : "chat");
+});
+setInterval(refreshStatus, 15000);
+</script>
+</body>
+</html>

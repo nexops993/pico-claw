@@ -1,0 +1,28 @@
+# Pico Claw documentation
+
+- [Introduction](introduction.md)
+- [Architecture](architecture.md)
+- [Installation](installation.md)
+- [Usage and CLI](usage.md)
+- [Configuration](configuration.md)
+- [Operations (attachments, jobs, artifacts, runs, doctor)](operations.md)
+- [Memory](memory.md)
+- [SOUL and MEMORY](soul-memory.md)
+- [Tasks, checkpoints, and observability](tasks.md)
+- [Teacher routing](routing.md)
+- [Learning proposals](learning-proposals.md)
+- [Experience, evaluation, reflection, and learning](experience-learning.md)
+- [Planner and executor](planner-executor.md)
+- [Tools](tools.md)
+- [MCP client](mcp.md)
+- [Web dashboard](web-dashboard.md)
+- [Telegram channel](telegram.md)
+- [HTTP API](api.md)
+- [Security](security.md)
+- [Troubleshooting](troubleshooting.md)
+- [Development](development.md)
+- [Building and testing](building.md)
+- [Cross-platform notes](cross-platform.md)
+- [v0.1.0 release](release.md)
+
+Repository-level documents: [README](../README.md), [Changelog](../CHANGELOG.md), [Contributing](../CONTRIBUTING.md), and [Security policy](../SECURITY.md).

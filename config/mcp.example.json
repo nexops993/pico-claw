@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "servers": [
+    {
+      "id": "demo",
+      "command": "C:/absolute/path/to/your/mcp_server.exe",
+      "args": ["--quiet"],
+      "env": {
+        "MCP_SERVER_TOKEN": "example-value-never-logged-or-exposed"
+      },
+      "enabled": true,
+      "auto_start": false,
+      "timeout_ms": 10000,
+      "permission": "elevated"
+    }
+  ]
+}

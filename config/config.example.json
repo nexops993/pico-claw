@@ -1,0 +1,16 @@
+{
+    "agent_name": "Pico Claw",
+    "model": "tamandata",
+    "base_url": "https://ai.tamandata.com/v1",
+    "system_prompt": "You are Pico Claw, a lightweight, safe, and helpful personal AI agent.",
+    "settings": {
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "soul_path": "SOUL.md",
+        "memory_path": "MEMORY.md",
+        "soul_budget_bytes": 4096,
+        "memory_budget_bytes": 16384,
+        "owner_budget_bytes": 20480,
+        "request_timeout_ms": 120000
+    }
+}

@@ -1,0 +1,24 @@
+zig-cache/
+.zig-cache/
+zig-out/
+config/config.json
+data/memory/*.jsonl
+data/experiences/*.jsonl
+data/learning/*.jsonl
+data/knowledge/*.jsonl
+data/**/*.jsonl
+
+*.log
+.env
+/SOUL.md
+/MEMORY.md
+
+# MCP runtime config (local only; server entries may hold env values)
+config/mcp.json
+
+# Runtime workspace content (sandbox creates the directory on startup)
+workspace/
+
+# Editor backups and Windows redirect artifacts
+*.bak
+nul
