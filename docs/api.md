@@ -33,7 +33,10 @@ envelope; without it (tests) they answer with the v1 shapes.
 - Loopback without `PICO_CLAW_DASHBOARD_TOKEN`: unauthenticated.
 - With the token set: every request must present
   `Authorization: Bearer <token>` or `X-Pico-Token: <token>`; otherwise
-  `401 {"ok":false,"error":{"code":"UNAUTHORIZED",…}}`.
+  `401 {"ok":false,"error":{"code":"UNAUTHORIZED",…}}`. The single
+  exception is the dashboard shell itself (`GET /`), which is served
+  without a token so the browser can render the login screen; it is static
+  markup and carries no secrets.
 - Non-loopback bind without a token is refused at startup
   (`error.NonLoopbackRequiresAuth`).
 - State-changing requests (`POST`/`PUT`/`DELETE`/`PATCH`) validate the

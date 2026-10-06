@@ -1386,7 +1386,10 @@ pub const Services = struct {
         try appendJsonString(writer, self.activeModel());
         writer.writeAll(",\"provider\":") catch return error.OutOfMemory;
         try appendJsonString(writer, self.config.base_url);
-        writer.print(",\"provider_connected\":{s}", .{if (self.apiKeyAvailable()) "true" else "false"}) catch return error.OutOfMemory;
+        writer.print(",\"provider_connected\":{s},\"auth_required\":{s}", .{
+            if (self.apiKeyAvailable()) "true" else "false",
+            if (self.auth_required) "true" else "false",
+        }) catch return error.OutOfMemory;
         writer.print(",\"memory\":{{\"memories\":{d},\"experiences\":{d},\"strategies\":{d},\"knowledge\":{d}}}", .{
             memories, experiences, strategies, knowledge,
         }) catch return error.OutOfMemory;

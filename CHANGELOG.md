@@ -4,6 +4,23 @@
 
 ### Added
 
+- **Remote dashboard login flow**: with `PICO_CLAW_DASHBOARD_TOKEN` set, the
+  dashboard shell (`GET /`) is now served without a token so a remote browser
+  can load the control plane; every data route (API, chat, health, artifacts,
+  uploads) stays token-protected and answers `401` without one. The embedded
+  dashboard gained a real login screen (password-style token input,
+  verify-before-store, inline errors — no `window.prompt()`), stores the
+  token in `localStorage.picoToken`, sends it as `X-Pico-Token` on every API
+  call, re-opens the gate on any `401`, and offers a ⏻ sign-out control that
+  clears it (visible only when the runtime reports `auth_required`, now part
+  of `GET /api/status`). Loopback-without-token behavior is unchanged. The
+  server-side gate is now the testable `authGate`/`validateBind` pair
+  (`src/interfaces/http.zig`); the non-loopback bind-without-token startup
+  refusal and both accepted headers (`X-Pico-Token`,
+  `Authorization: Bearer`) are regression-tested.
+
+### Fixed
+
 - **Attachment / upload infrastructure** (`src/runtime/attachments.zig`):
   controlled ingestion into `workspace/uploads/<id>/` with client-name
   validation (traversal, absolute/UNC/drive, reserved device names, control

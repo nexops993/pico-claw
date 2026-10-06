@@ -127,6 +127,52 @@ pub fn tokenMatches(presented: []const u8, expected: []const u8) bool {
     return matched == 1;
 }
 
+/// Startup bind policy: a non-loopback bind address requires a dashboard
+/// token. Called by `serve` before the listener is created.
+pub fn validateBind(host: []const u8, token: ?[]const u8) security_errors!void {
+    if (!isLoopbackHost(host) and token == null) return error.NonLoopbackRequiresAuth;
+}
+
+/// Path portion of a request target, query string stripped.
+pub fn requestPath(target: []const u8) []const u8 {
+    if (std.mem.indexOfScalar(u8, target, '?')) |q| return target[0..q];
+    return target;
+}
+
+/// True for the dashboard shell route: `GET /` (or `HEAD /`), query aside.
+/// The shell is static markup containing no secrets; it is deliberately
+/// served without a token so a remote browser can load the login UI when
+/// token authentication is enabled. Every data route (API, chat, health,
+/// artifacts, uploads) stays token-protected.
+pub fn isDashboardShell(method: std.http.Method, target: []const u8) bool {
+    if (method != .GET and method != .HEAD) return false;
+    return std.mem.eql(u8, requestPath(target), "/");
+}
+
+/// Token-authentication gate for an incoming request. Returns the rejection
+/// status when the request must be refused, or `null` when it may proceed.
+///
+/// - No token configured: nothing is rejected here (loopback default).
+/// - Token configured: `Authorization: Bearer <token>` or `X-Pico-Token`
+///   must match — except the dashboard shell (`GET /`), which is served
+///   without a token so the browser can render the login UI.
+/// - A non-loopback bind without a token is refused earlier, at startup,
+///   by `validateBind` (a token-less server never exposes the shell route).
+pub fn authGate(
+    auth: Auth,
+    method: std.http.Method,
+    target: []const u8,
+    bearer: ?[]const u8,
+    pico_token: ?[]const u8,
+) ?std.http.Status {
+    const token = auth.token orelse return null;
+    if (isDashboardShell(method, target)) return null;
+    const authorized = (bearer != null and tokenMatches(bearer.?, token)) or
+        (pico_token != null and tokenMatches(pico_token.?, token));
+    if (!authorized) return .unauthorized;
+    return null;
+}
+
 /// Fixed-window rate limiter for state-changing requests. The server loop
 /// is single-threaded, so no synchronization is needed.
 pub const RateLimiter = struct {
@@ -973,9 +1019,7 @@ pub fn serve(
     port: u16,
 ) !void {
     // Security rule: a non-loopback bind without authentication is refused.
-    if (!isLoopbackHost(host) and dashboard.auth.token == null) {
-        return error.NonLoopbackRequiresAuth;
-    }
+    try validateBind(host, dashboard.auth.token);
     const address = try std.Io.net.IpAddress.parseIp4(host, port);
     var listener = try address.listen(io, .{});
     defer listener.deinit(io);
@@ -1030,12 +1074,13 @@ fn serveConnection(
                 }
             }
 
-            var rejected: ?std.http.Status = null;
-            if (dashboard.auth.token) |token| {
-                const authorized = (bearer != null and tokenMatches(bearer.?, token)) or
-                    (pico_token != null and tokenMatches(pico_token.?, token));
-                if (!authorized) rejected = .unauthorized;
-            }
+            var rejected: ?std.http.Status = authGate(
+                dashboard.auth,
+                request.head.method,
+                request.head.target,
+                bearer,
+                pico_token,
+            );
             if (rejected == null and isStateChanging(request.head.method)) {
                 if (!originAllowed(origin_header, host_header)) rejected = .forbidden;
             }
@@ -2171,4 +2216,81 @@ test "security primitives behave correctly" {
     try std.testing.expect(limiter.allow(1001));
     try std.testing.expect(!limiter.allow(1002));
     try std.testing.expect(limiter.allow(1000 + RateLimiter.window_ms));
+}
+
+test "auth gate: dashboard shell loads without token, API stays protected" {
+    const auth = Auth{ .token = "secret" };
+
+    // The dashboard shell is served without a token so the login UI can load.
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .GET, "/", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .GET, "/?next=%2Fchat", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .HEAD, "/", null, null));
+
+    // Unauthenticated API/control-plane requests are rejected with 401.
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/api/status", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/api/sessions", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/chat", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/health", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .POST, "/", null, null));
+
+    // Wrong, empty, or wrong-length tokens are rejected on both headers.
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/api/status", "wrong", null));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/api/status", null, ""));
+    try std.testing.expectEqual(@as(?std.http.Status, .unauthorized), authGate(auth, .GET, "/api/status", "secrets", null));
+
+    // X-Pico-Token authenticates successfully.
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .GET, "/api/status", null, "secret"));
+    // Authorization: Bearer authenticates successfully.
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .GET, "/api/status", "secret", null));
+    // One header wrong, the other right: the right one wins.
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(auth, .GET, "/api/status", "wrong", "secret"));
+
+    // No token configured: the gate rejects nothing (loopback default).
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(.{}, .GET, "/api/status", null, null));
+    try std.testing.expectEqual(@as(?std.http.Status, null), authGate(.{}, .POST, "/chat", null, null));
+}
+
+test "validateBind: remote bind requires token" {
+    try std.testing.expectError(error.NonLoopbackRequiresAuth, validateBind("0.0.0.0", null));
+    try std.testing.expectError(error.NonLoopbackRequiresAuth, validateBind("192.168.1.10", null));
+    try std.testing.expectError(error.NonLoopbackRequiresAuth, validateBind("100.64.0.5", null));
+    try validateBind("0.0.0.0", "secret");
+    try validateBind("192.168.1.10", "secret");
+    try validateBind("127.0.0.1", null);
+    try validateBind("127.0.0.1", "secret");
+    try validateBind("localhost", null);
+    try validateBind("::1", null);
+}
+
+test "dashboard shell is served with token auth configured" {
+    var fake = Fake{ .allocator = std.testing.allocator };
+    var dashboard = Dashboard{
+        .handler = fake.handler(),
+        .model = "test-model",
+        .base_url = "https://example.invalid/v1",
+        .telegram_state = "disabled",
+        .auth = .{ .token = "secret" },
+    };
+    const shell = routeDashboard(std.testing.allocator, &dashboard, .GET, "/", "", false);
+    defer shell.deinit(std.testing.allocator);
+    try std.testing.expectEqual(std.http.Status.ok, shell.status);
+    try std.testing.expect(std.mem.indexOf(u8, shell.body, "Pico Claw") != null);
+    // API routes stay unchanged at the routing layer; the connection-level
+    // authGate is what rejects unauthenticated /api traffic with 401.
+    const api = routeDashboard(std.testing.allocator, &dashboard, .GET, "/api/status", "", false);
+    defer api.deinit(std.testing.allocator);
+    try std.testing.expectEqual(std.http.Status.ok, api.status);
+}
+
+test "dashboard HTML embeds the token login gate" {
+    // The embedded shell must ship the login UI so a remote browser can
+    // authenticate without any server-rendered secret.
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "login-overlay") != null);
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "id=\"login-token\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "localStorage.getItem(\"picoToken\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "localStorage.setItem(\"picoToken\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "X-Pico-Token") != null);
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "signout-btn") != null);
+    // A 401 from any API call re-opens the gate.
+    try std.testing.expect(std.mem.indexOf(u8, dashboard_html, "showLogin") != null);
 }

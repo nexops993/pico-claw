@@ -73,6 +73,16 @@ owner context that loads `SOUL.md`/`MEMORY.md`.
   only there.
 - Set `PICO_CLAW_DASHBOARD_TOKEN` to require authentication. The browser
   script attaches `X-Pico-Token` from `localStorage.picoToken` when present.
+- When the token is set, the dashboard shell itself (`GET /`) still loads so
+  the browser can render the login screen; every data route (API, chat,
+  health, artifacts, uploads) requires the token and answers `401` without
+  it. The shell is static markup and embeds no secrets.
+- On first access the dashboard shows a token login screen (no
+  `window.prompt`); the token is verified against a protected endpoint,
+  stored in `localStorage.picoToken`, and sent as `X-Pico-Token` on every
+  API request. Any `401` re-opens the login screen. The ⏻ button in the top
+  bar signs out and clears the stored token (shown only when the runtime
+  reports `auth_required`).
 - Binding a non-loopback address without a token is refused at startup.
 - State-changing requests validate the `Origin` header against the request
   host (CSRF protection) and are rate-limited (120/minute).
@@ -89,8 +99,9 @@ owner context that loads `SOUL.md`/`MEMORY.md`.
 
 ## Limits
 
-- Single-page, single-file, no build step, no authentication UI (the token is
-  supplied per browser).
+- Single-page, single-file, no build step. Token authentication uses the
+  built-in login screen and `localStorage.picoToken`; no external identity
+  service is involved.
 - Sessions are per-process and in-memory; restarting `serve` clears live
   conversations (durable stores keep tasks, experiences, and proposals).
 - The `serve` process cannot host the Telegram poll loop; run the channel
