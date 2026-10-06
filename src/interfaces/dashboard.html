@@ -246,6 +246,40 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
   .page { padding: 14px; }
 }
 .menu-btn { display: none; }
+
+/* ---------- token login gate ---------- */
+.login-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background:
+    radial-gradient(900px 60% at 20% -10%, rgba(122,92,255,.18), transparent 60%),
+    radial-gradient(700px 50% at 90% 110%, rgba(58,124,255,.14), transparent 55%),
+    rgba(7,9,15,.72);
+  backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+}
+.login-overlay[hidden] { display: none; }
+.login-card {
+  width: min(400px, 100%); padding: 28px 26px; text-align: center;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--panel-2); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  box-shadow: var(--shadow);
+}
+.login-logo {
+  width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; margin: 0 auto;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+  font-weight: 700; font-size: 18px; box-shadow: 0 8px 22px rgba(90,110,255,.35);
+}
+.login-card h1 { margin: 12px 0 4px; font-size: 20px; }
+.login-card .login-sub { color: var(--dim); font-size: 12.5px; margin: 0 0 18px; line-height: 1.55; }
+.login-card input {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 10px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  font: inherit; font-size: 14px;
+}
+.login-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.login-card .btn { width: 100%; justify-content: center; }
+.login-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin-top: 10px; }
+.login-note { color: var(--faint); font-size: 11px; margin: 10px 0 0; line-height: 1.55; }
 </style>
 </head>
 <body>
@@ -286,6 +320,7 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
       </div>
       <div class="spacer"></div>
       <span class="pill" id="status-pill"><span class="dot"></span><span id="status-text">connecting…</span></span>
+      <button class="icon-btn" id="signout-btn" hidden title="Sign out — clears the stored dashboard token" aria-label="Sign out">⏻</button>
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
     </header>
     <div class="pages">
@@ -344,6 +379,21 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
     <button class="btn danger" id="confirm-ok">Confirm</button>
   </div>
 </dialog>
+<div class="login-overlay" id="login-overlay" hidden>
+  <form class="login-card" id="login-form" novalidate>
+    <div class="login-logo">PC</div>
+    <h1>Pico Claw</h1>
+    <p class="login-sub">This control plane requires the dashboard token.<br>
+      It is set server-side via <span class="mono">PICO_CLAW_DASHBOARD_TOKEN</span>.</p>
+    <input type="password" id="login-token" name="token" autocomplete="current-password"
+           placeholder="Dashboard token" aria-label="Dashboard token">
+    <button class="btn primary" id="login-submit" type="submit">Sign in</button>
+    <div class="login-error" id="login-error" role="alert"></div>
+    <p class="login-note">The token is kept only in this browser as
+      <span class="mono">localStorage.picoToken</span> and sent as the
+      <span class="mono">X-Pico-Token</span> header. It is never embedded in these pages.</p>
+  </form>
+</div>
 <script>
 "use strict";
 /* ---------------- core helpers ---------------- */
@@ -388,11 +438,71 @@ async function api(path, options) {
   let payload = null;
   try { payload = await res.json(); } catch (err) { /* non-JSON */ }
   if (!res.ok || (payload && payload.ok === false)) {
+    if (res.status === 401) {
+      // Token missing, stale, or rotated: drop it and show the login gate.
+      localStorage.removeItem("picoToken");
+      showLogin();
+    }
     const e = (payload && payload.error) || {};
     throw { code: e.code || "HTTP_" + res.status, message: e.message || "Request failed (" + res.status + ")", status: res.status };
   }
   return payload ? payload.data : null;
 }
+
+/* ---------------- token gate (remote auth) ----------------
+ * When the runtime requires PICO_CLAW_DASHBOARD_TOKEN, the dashboard shell
+ * loads without a token and this gate asks for it once. The token is stored
+ * in localStorage.picoToken and attached by api() as X-Pico-Token; it is
+ * never embedded in markup, and any 401 re-opens this gate. */
+function showLogin(message) {
+  const overlay = $("#login-overlay");
+  const fresh = overlay.hidden;
+  if (message) $("#login-error").textContent = message;
+  overlay.hidden = false;
+  if (fresh) {
+    $("#login-token").value = "";
+    setTimeout(() => $("#login-token").focus(), 0);
+  }
+}
+function hideLogin() {
+  $("#login-overlay").hidden = true;
+  $("#login-error").textContent = "";
+}
+$("#login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = $("#login-token");
+  const errEl = $("#login-error");
+  const token = input.value.trim();
+  errEl.textContent = "";
+  if (!token) { errEl.textContent = "Enter the dashboard token."; return; }
+  const btn = $("#login-submit");
+  btn.disabled = true; input.disabled = true;
+  try {
+    // Verify against a protected endpoint before storing anything.
+    const res = await fetch("/api/status", { headers: { "X-Pico-Token": token } });
+    if (res.ok) {
+      localStorage.setItem("picoToken", token);
+      hideLogin();
+      startApp();
+    } else if (res.status === 401) {
+      errEl.textContent = "That token was rejected by the runtime.";
+      input.select();
+    } else {
+      errEl.textContent = "Sign-in failed (HTTP " + res.status + ").";
+    }
+  } catch (err) {
+    errEl.textContent = "Could not reach the Pico Claw runtime.";
+  } finally {
+    btn.disabled = false; input.disabled = false;
+  }
+});
+function signOut() {
+  localStorage.removeItem("picoToken");
+  runtimeStatus = null;
+  $("#signout-btn").hidden = true;
+  showLogin("Signed out. Enter the dashboard token to continue.");
+}
+$("#signout-btn").addEventListener("click", signOut);
 
 /* ---------------- theme ---------------- */
 function applyTheme(theme) {
@@ -445,19 +555,28 @@ $("#backdrop").addEventListener("click", () => { $("#sidebar").classList.remove(
 
 /* ---------------- status ---------------- */
 let runtimeStatus = null;
+function applyStatus(s) {
+  const ok = s.provider_connected;
+  const pill = $("#status-pill");
+  pill.className = "pill " + (ok ? "ok" : "warn");
+  $("#status-text").textContent = ok ? "runtime online" : "runtime online · provider offline";
+  $("#side-foot").innerHTML = '<span class="dot"></span>Pico Claw v' + (s.version || "?") +
+    " · model " + (s.model || "?") + " · " + (s.uptime_ms >= 0 ? Math.round(s.uptime_ms / 1000) + "s up" : "");
+  // Sign out is only meaningful when the runtime enforces token auth.
+  $("#signout-btn").hidden = !s.auth_required;
+}
+function applyStatusOffline() {
+  $("#status-pill").className = "pill err";
+  $("#status-text").textContent = "runtime unreachable";
+  $("#side-foot").innerHTML = '<span class="dot" style="background:var(--err)"></span>offline';
+  $("#signout-btn").hidden = true;
+}
 async function refreshStatus() {
   try {
     runtimeStatus = await api("/api/status");
-    const ok = runtimeStatus.provider_connected;
-    const pill = $("#status-pill");
-    pill.className = "pill " + (ok ? "ok" : "warn");
-    $("#status-text").textContent = ok ? "runtime online" : "runtime online · provider offline";
-    $("#side-foot").innerHTML = '<span class="dot"></span>Pico Claw v' + (runtimeStatus.version || "?") +
-      " · model " + (runtimeStatus.model || "?") + " · " + (runtimeStatus.uptime_ms >= 0 ? Math.round(runtimeStatus.uptime_ms / 1000) + "s up" : "");
+    applyStatus(runtimeStatus);
   } catch (err) {
-    $("#status-pill").className = "pill err";
-    $("#status-text").textContent = "runtime unreachable";
-    $("#side-foot").innerHTML = '<span class="dot" style="background:var(--err)"></span>offline';
+    applyStatusOffline();
   }
 }
 
@@ -1245,7 +1364,7 @@ pageLoaders.settings = async () => {
         kv("Authentication", s.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">off (loopback)</span>') +
         kv("Origin validation", "state-changing requests") +
         kv("Token header", "X-Pico-Token / Authorization: Bearer") +
-        '<div class="sub" style="margin-top:8px">Remote bind requires PICO_CLAW_DASHBOARD_TOKEN. Browsers store it once: <span class="mono">localStorage.picoToken</span>.</div>') +
+        '<div class="sub" style="margin-top:8px">Remote bind requires PICO_CLAW_DASHBOARD_TOKEN. The dashboard asks for it once (login screen), keeps it in <span class="mono">localStorage.picoToken</span>, and sends it as <span class="mono">X-Pico-Token</span>. Use the ⏻ button in the top bar to sign out and clear it.</div>') +
       cardEl("Runtime & limits",
         kv("Workspace", esc(s.runtime.workspace)) +
         kv("Data directory", esc(s.runtime.data_dir)) +
@@ -1328,11 +1447,26 @@ async function inspectRun(id) {
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { $("#sidebar").classList.remove("open"); $("#backdrop").classList.remove("show"); }
 });
-refreshStatus().then(() => {
+let statusTimer = null;
+function startApp() {
   const initial = (location.hash || "").replace("#/", "") || "chat";
   showPage(PAGE_META[initial] ? initial : "chat");
-});
-setInterval(refreshStatus, 15000);
+  if (!statusTimer) statusTimer = setInterval(refreshStatus, 15000);
+}
+/* Boot gate: probe a protected endpoint with whatever token the browser has
+ * stored. 401 opens the login UI and stops here; every other failure keeps
+ * the previous offline behavior (app visible, status pill shows the error). */
+async function boot() {
+  try {
+    runtimeStatus = await api("/api/status");
+    applyStatus(runtimeStatus);
+  } catch (err) {
+    if (err && err.status === 401) return; // login gate shown by api()
+    applyStatusOffline();
+  }
+  startApp();
+}
+boot();
 </script>
 </body>
 </html>
