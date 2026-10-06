@@ -77,7 +77,7 @@ pub const Settings = struct {
     }
 };
 
-fn isValidModel(model: []const u8) bool {
+pub fn isValidModel(model: []const u8) bool {
     for (model) |char| {
         const ok = std.ascii.isAlphanumeric(char) or char == '.' or char == '-' or
             char == '_' or char == '/' or char == ':' or char == '@';

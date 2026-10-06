@@ -641,9 +641,48 @@ fn apiRoute(
         return outcomeResponse(allocator, services.gatewaysJson());
     }
     if (std.mem.eql(u8, target, "/api/config")) {
-        if (method != .GET) return errorEnvelope(allocator, "METHOD_NOT_ALLOWED", "method not allowed");
-        const payload = services.configJson() catch return errorEnvelope(allocator, "INTERNAL", "encoding failed");
-        return okEnvelope(allocator, payload);
+        if (method == .GET) {
+            const payload = services.configJson() catch return errorEnvelope(allocator, "INTERNAL", "encoding failed");
+            return okEnvelope(allocator, payload);
+        }
+        if (method == .PUT) {
+            var parsed = parseBody(allocator, body) orelse
+                return errorEnvelope(allocator, "INVALID_JSON", "invalid JSON");
+            defer parsed.deinit();
+            // Secret-shaped fields are refused-by-design: reported as
+            // ignored, never stored or echoed. API keys live only in the
+            // environment of the process.
+            var ignored: [4][]const u8 = undefined;
+            var ignored_len: usize = 0;
+            const secret_fields = [_][]const u8{ "api_key", "apiKey", "token", "telegram_token" };
+            for (secret_fields) |name| {
+                if (parsed.has(name)) {
+                    ignored[ignored_len] = name;
+                    ignored_len += 1;
+                }
+            }
+            const outcome = services.updateConfig(.{
+                .agent_name = parsed.str("agent_name"),
+                .model = parsed.str("model"),
+                .base_url = parsed.str("base_url"),
+                .system_prompt = parsed.str("system_prompt"),
+                .temperature = parsed.num("temperature"),
+                .max_tokens = parsed.num("max_tokens"),
+                .task_max_attempts = parsed.num("task_max_attempts"),
+                .request_timeout_ms = parsed.num("request_timeout_ms"),
+                .soul_path = parsed.str("soul_path"),
+                .memory_path = parsed.str("memory_path"),
+                .soul_budget_bytes = parsed.num("soul_budget_bytes"),
+                .memory_budget_bytes = parsed.num("memory_budget_bytes"),
+                .owner_budget_bytes = parsed.num("owner_budget_bytes"),
+                .routing_local_only = parsed.boolean("routing_local_only"),
+                .teacher_base_url = parsed.str("teacher_base_url"),
+                .teacher_model = parsed.str("teacher_model"),
+                .ignored = ignored[0..ignored_len],
+            });
+            return outcomeResponse(allocator, outcome);
+        }
+        return errorEnvelope(allocator, "METHOD_NOT_ALLOWED", "method not allowed");
     }
     if (std.mem.eql(u8, target, "/api/settings")) {
         if (method == .GET) {
@@ -1502,6 +1541,7 @@ const ApiRig = struct {
             .jobs = self.jobs,
             .runs = &self.runs_store,
             .persist_settings = false,
+            .config_dir = self.tmp.dir,
         };
         self.services.config = &rig_config;
         errdefer self.services.deinit();
@@ -2030,7 +2070,10 @@ test "api session lifecycle create detail rename clear delete" {
 
     const gone = try apiGet(rig, "/api/sessions/research");
     defer gone.deinit(std.testing.allocator);
-    try std.testing.expectEqual(std.http.Status.not_found, gone.status);
+    // Valid ids report the (now empty) conversation instead of 404: after
+    // deletion the chat id is simply fresh again, matching lazy creation.
+    try std.testing.expectEqual(std.http.Status.ok, gone.status);
+    try std.testing.expect(std.mem.indexOf(u8, gone.body, "\"count\":0") != null);
 }
 
 test "api memory search forget and clear validation" {
@@ -2192,6 +2235,99 @@ test "api profiles lifecycle with containment" {
     defer detail.deinit(std.testing.allocator);
     try std.testing.expect(std.mem.indexOf(u8, detail.body, "\"soul.md\":") != null);
     try std.testing.expect(std.mem.indexOf(u8, detail.body, "\"custom.md\":") != null);
+}
+
+test "api session detail reports an empty conversation for a valid new chat" {
+    var rig = try ApiRig.create();
+    defer rig.destroy();
+
+    // Valid, never-used chat id: an empty conversation, not an error.
+    // Sessions are created lazily on first send, so this is the real
+    // "new conversation" state the dashboard shows after boot.
+    const detail = try apiGet(rig, "/api/sessions/fresh-chat");
+    defer detail.deinit(std.testing.allocator);
+    try std.testing.expectEqual(std.http.Status.ok, detail.status);
+    try std.testing.expect(std.mem.indexOf(u8, detail.body, "\"chat_id\":\"fresh-chat\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, detail.body, "\"messages\":[]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, detail.body, "\"count\":0") != null);
+
+    // Structurally invalid chat ids still answer 404 SESSION_NOT_FOUND.
+    const invalid = try apiGet(rig, "/api/sessions/bad%24id");
+    defer invalid.deinit(std.testing.allocator);
+    try std.testing.expectEqual(std.http.Status.not_found, invalid.status);
+    try std.testing.expect(std.mem.indexOf(u8, invalid.body, "SESSION_NOT_FOUND") != null);
+}
+
+test "api config update validates, persists atomically and reports application" {
+    var rig = try ApiRig.create();
+    defer rig.destroy();
+    const allocator = std.testing.allocator;
+
+    // The view exposes the editable surface so clients can render a form.
+    const view = try apiGet(rig, "/api/config");
+    defer view.deinit(allocator);
+    try std.testing.expect(std.mem.indexOf(u8, view.body, "\"editable\":{\"agent_name\":") != null);
+    try std.testing.expect(std.mem.indexOf(u8, view.body, "\"limits\":{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, view.body, "api_key_set") != null);
+
+    // Happy path: numbers apply at runtime, strings persist for restart,
+    // and the canonical config file is written under the rig's tmp dir.
+    const saved = try apiSend(rig, .PUT, "/api/config",
+        \\{"temperature":0.9,"max_tokens":256,"task_max_attempts":3,"agent_name":"Renamed",
+        \\"soul_budget_bytes":4096,"routing_local_only":true}
+    );
+    defer saved.deinit(allocator);
+    try std.testing.expectEqual(std.http.Status.ok, saved.status);
+    try std.testing.expect(std.mem.indexOf(u8, saved.body, "\"applied\":[\"temperature\",\"max_tokens\",\"task_max_attempts\",\"routing_local_only\"]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, saved.body, "\"requires_restart\":[\"agent_name\",\"soul_budget_bytes\"]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, saved.body, "\"ignored\":[]") != null);
+    // Provider picked up the runtime-safe values immediately.
+    try std.testing.expectEqual(@as(f64, 0.9), rig.provider.config.temperature);
+    try std.testing.expectEqual(@as(u32, 256), rig.provider.config.max_tokens);
+
+    const persisted = try rig.tmp.dir.readFileAlloc(std.testing.io, "config/config.json", allocator, .limited(64 * 1024));
+    defer allocator.free(persisted);
+    try std.testing.expect(std.mem.indexOf(u8, persisted, "\"agent_name\":\"Renamed\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, persisted, "\"temperature\":0.9") != null);
+    try std.testing.expect(std.mem.indexOf(u8, persisted, "\"soul_budget_bytes\":4096") != null);
+    // Parsing back must succeed: the written file is canonical config.
+    const reparsed = @import("../config.zig").Config.parse(allocator, persisted) catch
+        return error.TestUnexpectedResult;
+    defer reparsed.deinit(allocator);
+    try std.testing.expectEqual(@as(u8, 3), reparsed.task_max_attempts);
+
+    // GET still reports the running process view: string identity fields
+    // are persisted for restart, never swapped under live pointers.
+    const updated = try apiGet(rig, "/api/config");
+    defer updated.deinit(allocator);
+    try std.testing.expect(std.mem.indexOf(u8, updated.body, "\"agent_name\":\"Pico Claw\"") != null);
+
+    // Invalid values are rejected with useful codes; nothing is applied.
+    const cases = [_]struct { body: []const u8 }{
+        .{ .body = "{\"base_url\":\"ftp://nope\"}" },
+        .{ .body = "{\"temperature\":9}" },
+        .{ .body = "{\"task_max_attempts\":0}" },
+        .{ .body = "{\"soul_path\":\"../escape\"}" },
+        .{ .body = "{\"max_tokens\":1.5}" },
+        .{ .body = "{\"agent_name\":\"\"}" },
+    };
+    for (cases) |case| {
+        const rejected = try apiSend(rig, .PUT, "/api/config", case.body);
+        defer rejected.deinit(allocator);
+        try std.testing.expectEqual(std.http.Status.bad_request, rejected.status);
+        try std.testing.expect(std.mem.indexOf(u8, rejected.body, "INVALID_VALUE") != null);
+    }
+
+    // Secret-shaped fields are ignored (never stored) and reported.
+    const with_secret = try apiSend(rig, .PUT, "/api/config", "{\"temperature\":1.2,\"api_key\":\"CANARY-SHOULD-NOT-PERSIST\",\"telegram_token\":\"CANARY-TOKEN\"}");
+    defer with_secret.deinit(allocator);
+    try std.testing.expectEqual(std.http.Status.ok, with_secret.status);
+    try std.testing.expect(std.mem.indexOf(u8, with_secret.body, "\"ignored\":[\"api_key\",\"telegram_token\"]") != null);
+    const after_secret = try rig.tmp.dir.readFileAlloc(std.testing.io, "config/config.json", allocator, .limited(64 * 1024));
+    defer allocator.free(after_secret);
+    try std.testing.expect(std.mem.indexOf(u8, after_secret, "CANARY") == null);
+    rig_config.temperature = 0.7;
+    rig.provider.config.temperature = 0.7;
 }
 
 test "security primitives behave correctly" {

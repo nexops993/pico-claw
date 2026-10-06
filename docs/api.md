@@ -71,7 +71,7 @@ envelope; without it (tests) they answer with the v1 shapes.
 |---|---|---|
 | `/api/sessions` | GET | `[{chat_id, messages, active}, …]`. |
 | `/api/sessions` | POST | `{chat_id}` creates a session (id `[A-Za-z0-9._-]{1,64}`). |
-| `/api/sessions/:id` | GET | Bounded message history (system-policy messages excluded). `404 SESSION_NOT_FOUND`. |
+| `/api/sessions/:id` | GET | Bounded message history (system-policy messages excluded). A valid id with no live session reports an empty conversation (`"messages":[],"count":0`): sessions are created lazily on first send. `404 SESSION_NOT_FOUND` only for structurally invalid ids. |
 | `/api/sessions/:id` | DELETE | Drops the session (in-memory only). |
 | `/api/sessions/:id/send` | POST | `{message}` → `{response, html}` through the shared agent core. |
 | `/api/sessions/:id/clear` | POST | Resets the in-memory context. |
@@ -116,6 +116,11 @@ File keys are `soul.md`, `memory.md`, `instructions.md`, `behavior.md`,
 | `/api/gateways/:name/start` \| `/stop` \| `/restart` | POST | Lifecycle. From `serve`: `501 GATEWAY_LIFECYCLE_UNSUPPORTED` (the single-threaded process cannot host the poll loop); `409 GATEWAY_NOT_RUNNING` otherwise. |
 | `/api/gateways/:name/test` | POST | Real `getMe` probe; caches only id/username/first name. |
 
+The dashboard renders Start/Stop/Restart controls only when the process
+reports `can_host: true`; from `serve` it shows the external
+`pico_claw channel telegram` command instead, because those actions always
+answer `501 GATEWAY_LIFECYCLE_UNSUPPORTED` there.
+
 Token values are never returned; the API exposes `configured`/`enabled`/
 `state`/`allowed_users`/`bot`/`last_error` only.
 
@@ -123,7 +128,8 @@ Token values are never returned; the API exposes `configured`/`enabled`/
 
 | Endpoint | Method | Behavior |
 |---|---|---|
-| `/api/config` | GET | Schema-shaped provider/Telegram/runtime/owner/routing view (no secrets). |
+| `/api/config` | GET | Schema-shaped provider/Telegram/runtime/owner/routing view (no secrets) plus an `editable` section: the exact field set `PUT /api/config` accepts, with validation limits. |
+| `/api/config` | PUT | Updates whitelisted fields: `agent_name`, `model`, `base_url`, `system_prompt`, `temperature`, `max_tokens`, `task_max_attempts`, `request_timeout_ms`, `soul_path`, `memory_path`, budget bytes, `routing_local_only`, `teacher_base_url`/`teacher_model`. Validates first, persists the canonical config atomically to `config/config.json`, then applies runtime-safe numeric fields immediately. The response reports `applied`, `requires_restart` (string identity fields consumed from startup copies), and `ignored` (secret-shaped fields such as `api_key`/`token`: environment-only, never stored or echoed). Invalid values answer `400 INVALID_VALUE`; a failed write answers `503 PERSIST_FAILED` and changes nothing. |
 | `/api/settings` | GET | Effective model + source, retry attempts + source, limits, runtime facts. |
 | `/api/settings` | PUT | `{model?, task_max_attempts?, clear_model?}` — validated, persisted to `config/settings.json`, applied to the provider and new conversations. |
 

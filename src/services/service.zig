@@ -26,6 +26,7 @@ const gateways_mod = @import("gateways.zig");
 const models_mod = @import("models.zig");
 const settings_mod = @import("settings.zig");
 const profiles_mod = @import("profiles.zig");
+const owner_mod = @import("../owner.zig");
 const mcp_mod = @import("../mcp/registry.zig");
 const doctor_mod = @import("doctor.zig");
 const artifacts_mod = @import("artifacts.zig");
@@ -81,7 +82,14 @@ pub const Services = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
     env_map: *const std.process.Environ.Map,
-    config: *const Config,
+    /// Mutable so validated control-plane updates can apply runtime-safe
+    /// fields without restarting; string identity fields still require one.
+    config: *Config,
+    /// Where `updateConfig` persists config.json. Serve uses the process
+    /// working directory; tests point this at a temporary directory so tests
+    /// never touch real configuration files.
+    config_dir: ?std.Io.Dir = null,
+    config_path: []const u8 = "config/config.json",
     provider: *Provider,
     sessions: ?*SessionStore = null,
     tools: *ToolRegistry,
@@ -401,9 +409,27 @@ pub const Services = struct {
     /// Bounded message history for one session, oldest first. System-policy
     /// messages are excluded; when the cap is exceeded whole old messages are
     /// dropped from the front (never truncated mid-message).
+    ///
+    /// A valid chat id that has no live session yet reports an *empty*
+    /// conversation instead of 404: sessions are created lazily on first
+    /// send (`sendToSession` uses `getOrCreate`), so a brand-new conversation
+    /// is a real, empty state — not an error. Invalid ids still return null
+    /// (surfaced as 404 SESSION_NOT_FOUND at the transport).
     pub fn sessionDetailJson(self: *Services, chat_id: []const u8) !?[]u8 {
         const store = self.sessions orelse return null;
-        const conversation = store.find(chat_id) orelse return null;
+        const conversation = store.find(chat_id);
+        if (conversation == null) {
+            if (!validChatId(chat_id)) return null;
+            var empty_out: std.Io.Writer.Allocating = .init(self.allocator);
+            errdefer empty_out.deinit();
+            try empty_out.writer.writeAll("{\"chat_id\":");
+            try appendJsonString(&empty_out.writer, chat_id);
+            try empty_out.writer.writeAll(",\"messages\":[],\"count\":0}");
+            var empty_list = empty_out.toArrayList();
+            const empty_payload: ?[]u8 = try empty_list.toOwnedSlice(self.allocator);
+            return empty_payload;
+        }
+        const live = conversation.?;
 
         const max_messages: usize = 200;
         var output: std.Io.Writer.Allocating = .init(self.allocator);
@@ -414,7 +440,7 @@ pub const Services = struct {
         try appendJsonString(writer, chat_id);
         writer.writeAll(",\"messages\":[") catch return error.OutOfMemory;
 
-        const all = conversation.context.messages.items;
+        const all = live.context.messages.items;
         var visible: usize = 0;
         for (all) |message| {
             if (message.role != .system) visible += 1;
@@ -1480,9 +1506,60 @@ pub const Services = struct {
             writer.writeAll("}") catch return error.OutOfMemory;
         }
 
-        writer.print(",\"routing\":{{\"teacher_configured\":{s},\"local_only\":{s}}}}}", .{
+        writer.print(",\"routing\":{{\"teacher_configured\":{s},\"local_only\":{s}}}", .{
             if (self.config.routing.teacherConfigured()) "true" else "false",
             if (self.config.routing.local_only) "true" else "false",
+        }) catch return error.OutOfMemory;
+
+        // Editable view: the exact field set PUT /api/config accepts.
+        // Secrets are environment-only by design; they never appear here,
+        // in update payloads, or in responses.
+        writer.writeAll(",\"editable\":{\"agent_name\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.agent_name);
+        writer.writeAll(",\"model\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.model);
+        writer.writeAll(",\"base_url\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.base_url);
+        writer.writeAll(",\"system_prompt\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.system_prompt);
+        writer.print(",\"temperature\":{d},\"max_tokens\":{d}", .{
+            self.config.temperature,
+            self.config.max_tokens,
+        }) catch return error.OutOfMemory;
+        writer.print(",\"task_max_attempts\":{d},\"request_timeout_ms\":{d}", .{
+            self.config.task_max_attempts,
+            self.config.request_timeout_ms,
+        }) catch return error.OutOfMemory;
+        writer.writeAll(",\"soul_path\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.soul_path);
+        writer.writeAll(",\"memory_path\":") catch return error.OutOfMemory;
+        try appendJsonString(writer, self.config.memory_path);
+        writer.print(",\"soul_budget_bytes\":{d},\"memory_budget_bytes\":{d},\"owner_budget_bytes\":{d}", .{
+            self.config.soul_budget_bytes,
+            self.config.memory_budget_bytes,
+            self.config.owner_budget_bytes,
+        }) catch return error.OutOfMemory;
+        writer.print(",\"routing_local_only\":{s}", .{
+            if (self.config.routing.local_only) "true" else "false",
+        }) catch return error.OutOfMemory;
+        writer.writeAll(",\"teacher_base_url\":") catch return error.OutOfMemory;
+        if (self.config.routing.teacher_base_url) |teacher_url| {
+            try appendJsonString(writer, teacher_url);
+        } else {
+            writer.writeAll("null") catch return error.OutOfMemory;
+        }
+        writer.writeAll(",\"teacher_model\":") catch return error.OutOfMemory;
+        if (self.config.routing.teacher_model) |teacher_model| {
+            try appendJsonString(writer, teacher_model);
+        } else {
+            writer.writeAll("null") catch return error.OutOfMemory;
+        }
+        writer.print(",\"limits\":{{\"temperature_max\":2,\"max_tokens_max\":2000000,\"request_timeout_max_ms\":{d},\"task_attempts_max\":{d},\"budget_max_bytes\":{d},\"budget_section_max_bytes\":{d},\"model_max_len\":{d},\"path_max_len\":256,\"prompt_max_bytes\":16384}}}}}}", .{
+            @import("../config.zig").max_request_timeout_ms,
+            settings_mod.max_attempts_limit,
+            owner_mod.defaults.max_combined_bytes,
+            owner_mod.defaults.max_section_bytes,
+            settings_mod.max_model_len,
         }) catch return error.OutOfMemory;
 
         var list = output.toArrayList();
@@ -1552,6 +1629,271 @@ pub const Services = struct {
             if (self.settings.task_max_attempts) |value| store.deps.retry.max_attempts = value;
         }
         const payload = self.settingsJson() catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        return .{ .ok = payload };
+    }
+
+    /// One PUT /api/config payload. Optional fields mean "leave unchanged".
+    /// Secret-shaped fields are never part of this struct: the transport
+    /// reports them through `ignored` and they are never stored anywhere.
+    pub const ConfigUpdate = struct {
+        agent_name: ?[]const u8 = null,
+        model: ?[]const u8 = null,
+        base_url: ?[]const u8 = null,
+        system_prompt: ?[]const u8 = null,
+        temperature: ?f64 = null,
+        max_tokens: ?f64 = null,
+        task_max_attempts: ?f64 = null,
+        request_timeout_ms: ?f64 = null,
+        soul_path: ?[]const u8 = null,
+        memory_path: ?[]const u8 = null,
+        soul_budget_bytes: ?f64 = null,
+        memory_budget_bytes: ?f64 = null,
+        owner_budget_bytes: ?f64 = null,
+        routing_local_only: ?bool = null,
+        teacher_base_url: ?[]const u8 = null,
+        teacher_model: ?[]const u8 = null,
+        ignored: []const []const u8 = &.{},
+    };
+
+    /// Relative workspace path for config-managed files: no traversal, no
+    /// Windows separators or drive letters, printable, bounded length.
+    fn validConfigRelPath(path: []const u8) bool {
+        if (path.len == 0 or path.len > 256) return false;
+        if (std.fs.path.isAbsolute(path)) return false;
+        for (path) |char| {
+            if (char < 0x20 or char == 0x7f) return false;
+            if (char == '\\' or char == ':') return false;
+        }
+        if (std.mem.indexOf(u8, path, "..") != null) return false;
+        return true;
+    }
+
+    fn integralInRange(value: f64, min: f64, max: f64) bool {
+        return std.math.isFinite(value) and value == @trunc(value) and value >= min and value <= max;
+    }
+
+    /// Append one array element name with comma handling.
+    fn addName(writer: *std.Io.Writer, first: *bool, name: []const u8) void {
+        if (!first.*) writer.writeByte(',') catch return;
+        first.* = false;
+        appendJsonString(writer, name) catch return;
+    }
+
+    /// Config update: validate → persist atomically → apply runtime-safe
+    /// fields. Persistence happens before any in-memory mutation, so a
+    /// failed write never leaves the running process ahead of the file.
+    /// Response reports exactly what was `applied` now, what
+    /// `requires_restart` (string identity fields consumed from startup
+    /// copies), and which secret-shaped fields were `ignored` — a key is
+    /// environment-only and is never accepted, stored, or echoed.
+    pub fn updateConfig(self: *Services, update: ConfigUpdate) Outcome {
+        const cfg = self.config;
+
+        // ---- validate everything first (no partial application) ----
+        var new_agent_name = cfg.agent_name;
+        var new_model = cfg.model;
+        var new_base_url = cfg.base_url;
+        var new_system_prompt = cfg.system_prompt;
+        var new_soul_path = cfg.soul_path;
+        var new_memory_path = cfg.memory_path;
+        var new_teacher_base_url: ?[]const u8 = cfg.routing.teacher_base_url;
+        var new_teacher_model: ?[]const u8 = cfg.routing.teacher_model;
+
+        if (update.agent_name) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            if (value.len == 0 or value.len > 64) return Outcome.fail("INVALID_VALUE", "agent_name must be 1-64 characters.");
+            for (value) |char| {
+                if (char < 0x20 or char == 0x7f) return Outcome.fail("INVALID_VALUE", "agent_name must not contain control characters.");
+            }
+            new_agent_name = value;
+        }
+        if (update.model) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            if (value.len == 0 or value.len > settings_mod.max_model_len)
+                return Outcome.fail("INVALID_VALUE", "model must be 1-256 characters.");
+            if (!settings_mod.isValidModel(value))
+                return Outcome.fail("INVALID_VALUE", "model may only contain letters, digits and . _ / : @ -");
+            new_model = value;
+        }
+        if (update.base_url) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            const ok_scheme = (value.len > 7 and std.mem.startsWith(u8, value, "http://")) or
+                (value.len > 8 and std.mem.startsWith(u8, value, "https://"));
+            if (!ok_scheme or value.len > 2048)
+                return Outcome.fail("INVALID_VALUE", "base_url must be an http(s) endpoint like https://api.example.com/v1.");
+            new_base_url = value;
+        }
+        if (update.system_prompt) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            if (value.len == 0 or value.len > 16384)
+                return Outcome.fail("INVALID_VALUE", "system_prompt must be 1-16384 bytes.");
+            new_system_prompt = value;
+        }
+        if (update.temperature) |value| {
+            if (!std.math.isFinite(value) or value < 0 or value > 2)
+                return Outcome.fail("INVALID_VALUE", "temperature must be between 0 and 2.");
+        }
+        if (update.max_tokens) |value| {
+            if (!integralInRange(value, 1, 2_000_000))
+                return Outcome.fail("INVALID_VALUE", "max_tokens must be a whole number between 1 and 2000000.");
+        }
+        if (update.task_max_attempts) |value| {
+            if (!integralInRange(value, 1, @floatFromInt(settings_mod.max_attempts_limit)))
+                return Outcome.fail("INVALID_VALUE", "task_max_attempts must be between 1 and 5.");
+        }
+        if (update.request_timeout_ms) |value| {
+            if (!integralInRange(value, 1, @floatFromInt(@import("../config.zig").max_request_timeout_ms)))
+                return Outcome.fail("INVALID_VALUE", "request_timeout_ms must be between 1 and 600000.");
+        }
+        if (update.soul_path) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            if (!validConfigRelPath(value))
+                return Outcome.fail("INVALID_VALUE", "soul_path must be a relative workspace path without '..' or separators.");
+            new_soul_path = value;
+        }
+        if (update.memory_path) |raw| {
+            const value = std.mem.trim(u8, raw, " \t\r\n");
+            if (!validConfigRelPath(value))
+                return Outcome.fail("INVALID_VALUE", "memory_path must be a relative workspace path without '..' or separators.");
+            new_memory_path = value;
+        }
+        if (update.soul_budget_bytes) |value| {
+            if (!integralInRange(value, 0, @floatFromInt(owner_mod.defaults.max_section_bytes)))
+                return Outcome.fail("INVALID_VALUE", "soul_budget_bytes must be a whole number between 0 and 1048576.");
+        }
+        if (update.memory_budget_bytes) |value| {
+            if (!integralInRange(value, 0, @floatFromInt(owner_mod.defaults.max_section_bytes)))
+                return Outcome.fail("INVALID_VALUE", "memory_budget_bytes must be a whole number between 0 and 1048576.");
+        }
+        if (update.owner_budget_bytes) |value| {
+            if (!integralInRange(value, 0, @floatFromInt(owner_mod.defaults.max_combined_bytes)))
+                return Outcome.fail("INVALID_VALUE", "owner_budget_bytes must be a whole number between 0 and 2097152.");
+        }
+        if (update.teacher_base_url != null or update.teacher_model != null) {
+            const url = std.mem.trim(u8, update.teacher_base_url orelse "", " \t\r\n");
+            const model = std.mem.trim(u8, update.teacher_model orelse "", " \t\r\n");
+            if ((url.len == 0) != (model.len == 0))
+                return Outcome.fail("INVALID_VALUE", "teacher routing needs both teacher_base_url and teacher_model, or neither.");
+            if (url.len > 0) {
+                if (url.len > 2048 or
+                    !(std.mem.startsWith(u8, url, "http://") or std.mem.startsWith(u8, url, "https://")))
+                    return Outcome.fail("INVALID_VALUE", "teacher_base_url must be an http(s) endpoint.");
+                new_teacher_base_url = url;
+                new_teacher_model = model;
+            } else {
+                new_teacher_base_url = null;
+                new_teacher_model = null;
+            }
+        }
+
+        // ---- persist the canonical config atomically ----
+        var output: std.Io.Writer.Allocating = .init(self.allocator);
+        defer output.deinit();
+        const writer = &output.writer;
+        writer.writeAll("{\"agent_name\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_agent_name) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"model\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_model) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"base_url\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_base_url) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"system_prompt\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_system_prompt) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"settings\":{\"temperature\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.print("{d}", .{update.temperature orelse cfg.temperature}) catch
+            return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.print(",\"max_tokens\":{d}", .{
+            if (update.max_tokens) |v| @as(u32, @intFromFloat(v)) else cfg.max_tokens,
+        }) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"soul_path\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_soul_path) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.writeAll(",\"memory_path\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        appendJsonString(writer, new_memory_path) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.print(",\"soul_budget_bytes\":{d},\"memory_budget_bytes\":{d},\"owner_budget_bytes\":{d}", .{
+            if (update.soul_budget_bytes) |v| @as(usize, @intFromFloat(v)) else cfg.soul_budget_bytes,
+            if (update.memory_budget_bytes) |v| @as(usize, @intFromFloat(v)) else cfg.memory_budget_bytes,
+            if (update.owner_budget_bytes) |v| @as(usize, @intFromFloat(v)) else cfg.owner_budget_bytes,
+        }) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        writer.print(",\"task_max_attempts\":{d},\"request_timeout_ms\":{d}", .{
+            if (update.task_max_attempts) |v| @as(u8, @intFromFloat(v)) else cfg.task_max_attempts,
+            if (update.request_timeout_ms) |v| @as(u32, @intFromFloat(v)) else cfg.request_timeout_ms,
+        }) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        const local_only_now = update.routing_local_only orelse cfg.routing.local_only;
+        writer.print(",\"routing_local_only\":{s}", .{if (local_only_now) "true" else "false"}) catch
+            return Outcome.fail("INTERNAL", "Encoding failed.");
+        if (new_teacher_base_url) |url| {
+            writer.writeAll(",\"routing_teacher_base_url\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+            appendJsonString(writer, url) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        }
+        if (new_teacher_model) |model| {
+            writer.writeAll(",\"routing_teacher_model\":") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+            appendJsonString(writer, model) catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        }
+        writer.writeAll("}}") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+
+        const dir = self.config_dir orelse std.Io.Dir.cwd();
+        // Ensure the target directory exists (serve: config/; tests: tmp).
+        if (std.mem.lastIndexOfScalar(u8, self.config_path, '/')) |slash| {
+            dir.createDirPath(self.io, self.config_path[0..slash]) catch |err| {
+                if (err != error.PathAlreadyExists)
+                    return Outcome.fail("PERSIST_FAILED", "Preparing the config directory failed; nothing was changed.");
+            };
+        }
+        owner_mod.writeMemoryAtomic(self.io, dir, self.config_path, output.written()) catch
+            return Outcome.fail("PERSIST_FAILED", "Writing config.json failed; nothing was changed.");
+
+        // ---- apply runtime-safe fields (numeric only) ----
+        var applied_first = true;
+        var restart_first = true;
+        var out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer out.deinit();
+        const w = &out.writer;
+        w.writeAll("{\"applied\":[") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+
+        if (update.temperature) |value| {
+            cfg.temperature = value;
+            self.provider.config.temperature = value;
+            addName(w, &applied_first, "temperature");
+        }
+        if (update.max_tokens) |value| {
+            cfg.max_tokens = @intFromFloat(value);
+            self.provider.config.max_tokens = cfg.max_tokens;
+            addName(w, &applied_first, "max_tokens");
+        }
+        if (update.request_timeout_ms) |value| {
+            cfg.request_timeout_ms = @intFromFloat(value);
+            self.provider.config.request_timeout_ms = cfg.request_timeout_ms;
+            addName(w, &applied_first, "request_timeout_ms");
+        }
+        if (update.task_max_attempts) |value| {
+            cfg.task_max_attempts = @intFromFloat(value);
+            if (self.sessions) |store| store.deps.retry.max_attempts = cfg.task_max_attempts;
+            addName(w, &applied_first, "task_max_attempts");
+        }
+        if (update.routing_local_only) |value| {
+            // Applies to conversations created from now on; live sessions
+            // keep the routing decision they were created with.
+            cfg.routing.local_only = value;
+            addName(w, &applied_first, "routing_local_only");
+        }
+        w.writeAll("],\"requires_restart\":[") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        if (update.agent_name != null) addName(w, &restart_first, "agent_name");
+        if (update.model != null) addName(w, &restart_first, "model");
+        if (update.base_url != null) addName(w, &restart_first, "base_url");
+        if (update.system_prompt != null) addName(w, &restart_first, "system_prompt");
+        if (update.soul_path != null) addName(w, &restart_first, "soul_path");
+        if (update.memory_path != null) addName(w, &restart_first, "memory_path");
+        if (update.soul_budget_bytes != null) addName(w, &restart_first, "soul_budget_bytes");
+        if (update.memory_budget_bytes != null) addName(w, &restart_first, "memory_budget_bytes");
+        if (update.owner_budget_bytes != null) addName(w, &restart_first, "owner_budget_bytes");
+        if (update.teacher_base_url != null or update.teacher_model != null) addName(w, &restart_first, "teacher_routing");
+        w.writeAll("],\"ignored\":[") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+        var ignored_first = true;
+        for (update.ignored) |name| addName(w, &ignored_first, name);
+        w.writeAll("]}") catch return Outcome.fail("INTERNAL", "Encoding failed.");
+
+        var result = out.toArrayList();
+        const payload = result.toOwnedSlice(self.allocator) catch
+            return Outcome.fail("INTERNAL", "Encoding failed.");
         return .{ .ok = payload };
     }
 

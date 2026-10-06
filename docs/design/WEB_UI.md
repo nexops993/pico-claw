@@ -2,6 +2,33 @@
 
 **Status:** Target design. Build against real backend contracts; do not imply unimplemented features exist.
 
+## 0. Implemented responsive baseline (current build)
+- **Mobile-first CSS:** the stylesheet starts at phone widths (360-430px
+  verified breakpoints) and enhances at `>=640px`, `>=900px` and `>=1100px`.
+  Below 900px the navigation sidebar and the chat conversation rail are
+  off-canvas drawers opened by the hamburger and a per-page toggle, closed
+  by backdrop tap, `Escape`, or navigation.
+- **No horizontal page scroll:** `html/body` clamp overflow; wide tables are
+  wrapped in `.table-wrap` horizontal-scroll containers; card grids collapse
+  to one column below 640px.
+- **Chat keyboard behavior:** the app uses `100dvh` height, the message list
+  is the only scrolling element, the composer keeps `env(safe-area-inset-bottom)`
+  padding, and the viewport meta carries `viewport-fit=cover` so the input
+  stays usable above the mobile keyboard.
+- **Touch targets:** buttons, nav items and list rows keep a 40px minimum
+  height; forms stretch to full available width.
+- **Dialogs:** native `<dialog>` modals cap at `min(92vw, 460px)` and
+  `86dvh` so they always fit phone viewports. All former `window.prompt`
+  flows (conversation rename, memory search, profile create/duplicate) use
+  these modals.
+- **Config page is editable:** facts cards are read-only; the editable form
+  writes through `PUT /api/config`, tracks unsaved changes (navigation and
+  reload warnings), and reports `applied` vs `requires_restart` vs `ignored`
+  per field. Secrets are never rendered as inputs.
+- **Gateway honesty:** Start/Stop/Restart controls only render when the
+  runtime reports `can_host: true`; otherwise the page shows the external
+  `pico_claw channel telegram` command and real connection-test state.
+
 ## 1. Goals and principles
 The dashboard is an operations surface, not a decorative chat clone. Users should see task state, selected model/provider, tools used, pending approvals, usage, and what was learned. Responsive mobile/desktop, keyboard-accessible, clear focus, sufficient contrast, restrained motion, semantic status labels. Dark/light theme should use semantic tokens. Never display secrets. Every async action has loading, success, empty, and failure states.
 
