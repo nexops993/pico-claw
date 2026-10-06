@@ -2,9 +2,10 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pico Claw — Control Plane</title>
 <style>
+/* ================= Pico Claw dashboard — mobile-first ================= */
 :root {
   --bg0:#07090f; --bg1:#0b0f18;
   --panel: rgba(255,255,255,.05); --panel-2: rgba(255,255,255,.08);
@@ -18,6 +19,8 @@
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --sans: -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
   --density: 1;
+  --sidebar-w: 236px;
+  --touch: 40px;
 }
 html[data-theme="light"] {
   --bg0:#eef1f7; --bg1:#f7f9fd;
@@ -26,35 +29,38 @@ html[data-theme="light"] {
   --text:#182035; --dim:#5b6478; --faint:#8a93a6;
   --accent:#3b6cf5; --accent-2:#7a4df0; --ok:#12945d; --warn:#a2701c; --err:#cf3f43;
   --user-bubble: linear-gradient(135deg,#3b6cf5,#7a4df0);
-  --shadow: 0 16px 40px rgba(30,41,66,.14);
+  --shadow: 0 18px 50px rgba(30,41,66,.14);
 }
 html[data-density="compact"] { --density: .85; }
+
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { max-width: 100%; overflow-x: hidden; }
 body {
-  margin: 0; color: var(--text); font: calc(14px * var(--density))/1.55 var(--sans);
-  background: radial-gradient(1100px 700px at 85% -10%, rgba(122,92,255,.16), transparent 60%),
-              radial-gradient(900px 600px at -10% 110%, rgba(58,124,255,.13), transparent 55%),
-              linear-gradient(160deg, var(--bg0), var(--bg1));
-  overflow: hidden;
+  margin: 0; min-height: 100dvh; color: var(--text);
+  font: calc(14px * var(--density))/1.55 var(--sans);
+  background:
+    radial-gradient(1100px 85% -10%, rgba(122,92,255,.16), 60%),
+    radial-gradient(900px 60% 110%, rgba(58,124,255,.13), 55%),
+    linear-gradient(160deg, var(--bg0), var(--bg1));
+  background-attachment: fixed;
 }
 body::after {
-  content:""; position: fixed; inset: 0; pointer-events: none;
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.014 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
 }
-.app { display: flex; height: 100vh; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.app { display: flex; height: 100vh; height: 100dvh; position: relative; z-index: 1; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--panel-2); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: var(--panel-2); border-radius: 8px; background-clip: content-box; }
 
-/* ---------- sidebar ---------- */
+/* ---------- sidebar (off-canvas drawer by default) ---------- */
 .sidebar {
-  width: 232px; flex: none; display: flex; flex-direction: column; gap: 4px;
-  padding: 18px 14px; backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  display: none; flex-direction: column; gap: 14px; padding: 16px 14px;
+  backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
   background: var(--panel); border-right: 1px solid var(--border-soft); z-index: 30;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
-.brand .logo {
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo {
   width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; font-size: 15px;
   box-shadow: 0 6px 18px rgba(90,110,255,.35);
@@ -62,125 +68,115 @@ body::after {
 .brand b { font-size: 15px; letter-spacing: .2px; }
 .brand small { display: block; color: var(--dim); font-size: 10.5px; font-weight: 500; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--touch); text-align: left;
   border: 1px solid transparent; background: transparent; color: var(--dim);
   padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-weight: 500;
   transition: background .15s, color .15s, border-color .15s;
 }
 .nav-item:hover { color: var(--text); background: var(--panel); }
 .nav-item.active { color: var(--text); background: var(--panel-2); border-color: var(--border); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
-.nav-item .ico { width: 17px; text-align: center; opacity: .9; }
+.nav-item .ico { text-align: center; }
 .sidebar .spacer { flex: 1; }
-.side-foot { color: var(--faint); font-size: 11px; padding: 8px 10px; border-top: 1px solid var(--border-soft); }
-.side-foot .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+.side-foot { color: var(--faint); font-size: 11px; display: flex; align-items: center; gap: 7px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; flex: none; }
+.pill.ok .dot { background: var(--ok); } .pill.warn .dot { background: var(--warn); } .pill.err .dot { background: var(--err); }
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0; width: min(280px, 84vw);
+    transform: translateX(-105%); transition: transform .22s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .sidebar.open { transform: none; box-shadow: var(--shadow); }
+  .backdrop {
+    display: block; position: fixed; inset: 0; background: rgba(4,6,12,.5);
+    z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .backdrop.show { opacity: 1; pointer-events: auto; }
+}
+@media (min-width: 901px) { .sidebar { display: flex; width: var(--sidebar-w); flex: none; } }
 
 /* ---------- main column ---------- */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
-  display: flex; align-items: center; gap: 12px; padding: 14px 22px;
-  border-bottom: 1px solid var(--border-soft); backdrop-filter: var(--glass); background: var(--panel);
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border-soft); backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass); background: var(--panel); flex: none; min-width: 0;
 }
-.topbar h1 { font-size: 16px; margin: 0; font-weight: 650; }
+.topbar h1 { margin: 0; font-size: 16px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .sub { color: var(--dim); font-size: 12px; }
-.topbar .spacer { flex: 1; }
-.pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--panel); font-size: 12px; color: var(--dim); white-space: nowrap;
-}
-.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
-.pill.ok .dot { background: var(--ok); } .pill.warn .dot { background: var(--warn); } .pill.err .dot { background: var(--err); }
+.menu-btn { display: none; }
 .icon-btn {
-  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel);
-  color: var(--dim); cursor: pointer; font-size: 14px; display: grid; place-items: center; transition: all .15s;
+  width: var(--touch); height: var(--touch); display: grid; place-items: center; flex: none;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  border-radius: var(--radius-sm); cursor: pointer; font-size: 16px;
 }
-.icon-btn:hover { color: var(--text); border-color: var(--accent); }
-.btn {
-  border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; font-weight: 550;
-  padding: 7px 14px; border-radius: 10px; cursor: pointer; transition: all .15s; white-space: nowrap;
+.icon-btn:hover { background: var(--panel); }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel-2); font-size: 12px; color: var(--dim);
+  max-width: 46vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.btn:hover { border-color: var(--accent); transform: translateY(-1px); }
-.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff; box-shadow: 0 8px 22px rgba(80,105,255,.35); }
-.btn.danger { border-color: rgba(244,112,103,.4); color: var(--err); }
-.btn.ghost { background: transparent; }
-.btn.sm { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
+@media (max-width: 900px) { .menu-btn { display: grid; } .topbar .sub { display: none; } }
+@media (max-width: 430px) { .pill { max-width: 40vw; font-size: 11px; } }
 
-/* ---------- pages & cards ---------- */
-.pages { flex: 1; min-height: 0; position: relative; }
-.page { display: none; height: 100%; overflow-y: auto; padding: 22px; }
-.page.active { display: block; }
-.page-chat.active { display: flex; padding: 0; overflow: hidden; }
-.grid { display: grid; gap: 16px; }
-.grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-.grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
-.card {
-  border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
-  background: var(--panel); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
-  box-shadow: var(--shadow); transition: transform .15s, border-color .15s;
-}
-.card:hover { transform: translateY(-2px); border-color: var(--border); }
-.card h3 { margin: 0 0 10px; font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.kv { display: flex; justify-content: space-between; gap: 12px; padding: 4.5px 0; font-size: 13px; border-bottom: 1px dashed var(--border-soft); }
-.kv:last-child { border-bottom: none; }
-.kv .k { color: var(--dim); } .kv .v { font-weight: 550; text-align: right; overflow-wrap: anywhere; }
-.metric { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
-.metric small { font-size: 12px; color: var(--dim); font-weight: 500; margin-left: 6px; }
-.trend-ok { color: var(--ok); } .trend-err { color: var(--err); }
-.badge { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); color: var(--dim); }
-.badge.ok { color: var(--ok); border-color: rgba(62,207,142,.35); background: rgba(62,207,142,.08); }
-.badge.warn { color: var(--warn); border-color: rgba(230,180,80,.35); background: rgba(230,180,80,.08); }
-.badge.err { color: var(--err); border-color: rgba(244,112,103,.35); background: rgba(244,112,103,.08); }
-.badge.acc { color: var(--accent); border-color: rgba(122,165,255,.35); background: rgba(122,165,255,.08); }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; color: var(--dim); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
-td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: top; overflow-wrap: anywhere; }
-tr:last-child td { border-bottom: none; }
-.mono { font-family: var(--mono); font-size: 12px; }
-
-/* ---------- states ---------- */
-.state { text-align: center; color: var(--dim); padding: 34px 16px; }
-.state .big { font-size: 30px; margin-bottom: 6px; }
-.state.err { color: var(--err); }
-.skeleton { height: 13px; border-radius: 7px; margin: 9px 0; background: linear-gradient(90deg, var(--panel), var(--panel-2), var(--panel)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.pages { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.page { display: none; padding: 16px; min-width: 0; }
+.page.active { display: block; animation: fadeUp .25s ease; }
+.page-chat.active { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.fade { animation: fadeUp .25s ease; }
 
-/* ---------- chat workspace ---------- */
-.chat-shell { display: flex; height: 100%; min-height: 0; }
+/* ---------- chat ---------- */
+.chat-shell { display: flex; flex: 1; min-height: 0; position: relative; }
 .conv-rail {
-  width: 220px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--border-soft);
-  background: var(--panel); backdrop-filter: var(--glass); padding: 14px 10px; gap: 8px; min-height: 0;
+  display: none; flex-direction: column; gap: 10px; width: 240px; flex: none;
+  border-right: 1px solid var(--border-soft); padding: 14px 12px;
+  background: var(--panel); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
 }
-.conv-rail h2 { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin: 0 6px; }
-.conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.conv-rail h2 { margin: 0 4px; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .8px; }
+.conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .conv-item {
-  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; background: transparent; color: var(--dim); cursor: pointer; font: inherit; text-align: left; width: 100%;
+  display: flex; align-items: center; gap: 8px; min-height: var(--touch);
+  border: 1px solid transparent; background: transparent; color: var(--dim);
+  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; width: 100%; text-align: left;
 }
 .conv-item:hover { color: var(--text); background: var(--panel-2); }
 .conv-item.active { color: var(--text); background: var(--panel-2); border-color: var(--border); }
 .conv-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.conv-item .badge { flex: none; }
+@media (max-width: 900px) {
+  .conv-rail {
+    position: absolute; z-index: 15; top: 0; bottom: 0; left: 0; width: min(300px, 86vw);
+    transform: translateX(-105%); transition: transform .22s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; box-shadow: var(--shadow);
+  }
+  .conv-rail.open { transform: none; }
+}
+@media (min-width: 901px) { .conv-rail { display: flex; } }
+#conv-toggle { display: none; }
+@media (max-width: 900px) { #conv-toggle { display: inline-flex; } }
+
 .chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .chat-toolbar {
-  display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--border-soft);
-  backdrop-filter: var(--glass); background: var(--panel); flex-wrap: wrap;
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-soft); backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass); background: var(--panel); flex: none;
 }
+.chat-toolbar label { color: var(--dim); font-size: 12px; }
 .chat-toolbar select, .field select, .field input, .field textarea {
-  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 7px 10px;
+  font: inherit; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px;
 }
-#messages { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+.chat-toolbar select { max-width: 100%; min-width: 0; flex: 1 1 150px; }
+.chat-toolbar .spacer { flex: 1 0 0; }
+#messages { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
 .row { display: flex; }
 .row.user { justify-content: flex-end; }
-.bubble {
-  max-width: min(78%, 46rem); padding: 9px 14px; border-radius: var(--radius); overflow-wrap: anywhere;
-  animation: fadeUp .22s ease;
-}
-.row.user .bubble { background: var(--user-bubble); color: #fff; border-bottom-right-radius: 6px; }
-.row.assistant .bubble { background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 6px; backdrop-filter: var(--glass); }
-.row.error .bubble { background: transparent; border: 1px solid var(--err); color: var(--err); }
-.bubble p { margin: .3em 0; } .bubble h1,.bubble h2,.bubble h3 { margin: .5em 0 .3em; font-size: 1.05em; }
+.bubble { max-width: min(86%, 46rem); padding: 9px 14px; border-radius: var(--radius); overflow-wrap: anywhere; animation: fadeUp .22s ease; }
+.row.assistant .bubble { background: var(--panel-2); border: 1px solid var(--border-soft); }
+.row.user .bubble { background: var(--user-bubble); color: #fff; box-shadow: 0 8px 24px rgba(77,90,255,.25); }
+.row.error .bubble { background: rgba(244,112,103,.12); border: 1px solid rgba(244,112,103,.35); color: var(--text); }
+.row.system .bubble { background: transparent; color: var(--faint); font-size: 12px; }
+.bubble p { margin: .3em 0; }
 .bubble pre { background: rgba(0,0,0,.28); border: 1px solid var(--border-soft); border-radius: var(--radius-xs); padding: 10px 12px; overflow-x: auto; position: relative; margin: .45em 0; }
 html[data-theme="light"] .bubble pre { background: rgba(20,30,60,.05); }
 .bubble pre code { font-family: var(--mono); font-size: 12px; background: none; padding: 0; }
@@ -188,98 +184,145 @@ html[data-theme="light"] .bubble pre { background: rgba(20,30,60,.05); }
 .bubble a { color: var(--accent); }
 .bubble ul { margin: .35em 0; padding-left: 1.25em; }
 .copy-btn { position: absolute; top: 6px; right: 6px; font-size: 10.5px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2); color: var(--dim); cursor: pointer; opacity: 0; transition: opacity .15s; }
-.bubble pre:hover .copy-btn { opacity: 1; }
-.tool-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--accent); border: 1px solid rgba(122,165,255,.3); background: rgba(122,165,255,.08); padding: 2px 9px; border-radius: 999px; margin: 4px 0; }
-.typing { display: inline-flex; gap: 5px; padding: 6px 2px; }
-.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); animation: blink 1.2s infinite; }
-.typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }
+.bubble pre:hover .copy-btn, .bubble pre:focus-within .copy-btn, .copy-btn:focus { opacity: 1; }
+@media (hover: none) { .copy-btn { opacity: .75; } }
+.tool-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--accent); background: rgba(122,165,255,.3); border: 1px solid rgba(122,165,255,.08); border-radius: 6px; padding: 1px 8px; }
+.typing { display: inline-flex; gap: 4px; align-items: center; }
+.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); animation: blink 1.1s infinite; }
+.typing span:nth-child(2) { animation-delay: .18s; }
+.typing span:nth-child(3) { animation-delay: .36s; }
 @keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
-.chat-input-wrap { padding: 14px 18px 18px; }
+
+.chat-input-wrap { padding: 10px 14px calc(14px + env(safe-area-inset-bottom)); flex: none; }
 .chat-input-box {
   display: flex; align-items: flex-end; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--panel-2); backdrop-filter: var(--glass); padding: 10px 12px; box-shadow: var(--shadow);
+  background: var(--panel-2); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  padding: 10px; box-shadow: var(--shadow);
 }
-#chat-input {
-  flex: 1; resize: none; border: none; background: transparent; color: var(--text); font: inherit;
-  max-height: 180px; min-height: 24px; outline: none;
-}
+#chat-input { flex: 1; border: none; outline: none; background: none; color: var(--text); resize: none; max-height: 180px; min-height: 24px; font: inherit; }
 #chat-input::placeholder { color: var(--faint); }
-.hint { color: var(--faint); font-size: 11px; margin: 8px 4px 0; text-align: center; }
+.hint { color: var(--faint); font-size: 11px; margin-top: 6px; text-align: center; }
 .hint kbd { font-family: var(--mono); background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 10px; }
+
+/* ---------- cards / grids ---------- */
+.grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); padding: 16px; min-width: 0; }
+.card h3 { margin: 0 0 10px; font-size: 14px; }
+.fade { animation: fadeUp .25s ease; }
+.kv { display: flex; gap: 10px; padding: 4px 0; align-items: baseline; min-width: 0; }
+.kv .k { color: var(--dim); flex: none; min-width: 110px; font-size: 12px; }
+.kv .v { min-width: 0; overflow-wrap: anywhere; }
+.metric { font-size: 26px; font-weight: 650; }
+.metric small { display: block; font-size: 11px; color: var(--dim); font-weight: 500; }
+.metric + .metric { margin-top: 8px; }
+.trend-ok { color: var(--ok); } .trend-err { color: var(--err); }
+.badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--dim); font-size: 11px; }
+.badge.ok { color: var(--ok); border-color: rgba(62,207,142,.35); }
+.badge.warn { color: var(--warn); border-color: rgba(230,180,80,.35); }
+.badge.err { color: var(--err); border-color: rgba(244,112,103,.4); }
+@media (min-width: 640px) { .grid.cols-2, .grid.cols-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .grid.cols-3 { grid-template-columns: repeat(3, 1fr); } }
+
+/* ---------- states / skeletons ---------- */
+.state { text-align: center; color: var(--dim); padding: 34px 16px; }
+.state .big { font-size: 34px; margin-bottom: 8px; }
+.state.err { color: var(--err); }
+.state.warn { color: var(--warn); }
+.skeleton { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--panel), var(--panel-2), var(--panel)); background-size: 200% 100%; animation: shimmer 1.2s infinite; margin: 8px 0; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--touch); padding: 8px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  cursor: pointer; font: inherit; font-weight: 550; transition: background .15s, border-color .15s;
+}
+.btn:hover { background: var(--panel); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff; box-shadow: 0 8px 22px rgba(90,110,255,.3); }
+.btn.danger { color: var(--err); border-color: rgba(244,112,103,.4); }
+.btn.sm { min-height: 34px; padding: 5px 11px; font-size: 12.5px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.sub { color: var(--dim); font-size: 12px; }
+.mono { font-family: var(--mono); font-size: .92em; }
+
+/* ---------- tables (horizontal scroll containers on narrow screens) ---------- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+th { color: var(--dim); font-weight: 550; font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+tbody tr:hover { background: var(--panel); }
 
 /* ---------- misc ---------- */
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.filters .chip { border: 1px solid var(--border); background: var(--panel); color: var(--dim); border-radius: 999px; padding: 4px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.filters .chip { border: 1px solid var(--border); background: var(--panel); color: var(--dim); border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 12px; cursor: pointer; min-height: 34px; }
 .filters .chip.active { color: var(--text); border-color: var(--accent); background: rgba(122,165,255,.10); }
-.sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
+.sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; flex-wrap: wrap; }
 .sec-head h2 { margin: 0; font-size: 15px; }
 .sec-head .spacer { flex: 1; }
 .editor { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
 .stage { display: flex; gap: 10px; padding: 6px 0; align-items: flex-start; font-size: 13px; }
-.stage .mark { width: 20px; text-align: center; }
+.stage .mark { width: 20px; text-align: center; flex: none; }
 .stage.done .mark { color: var(--ok); } .stage.fail .mark { color: var(--err); } .stage.run .mark { color: var(--warn); }
 
-#toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 90; }
+/* ---------- forms (config / settings) ---------- */
+.form-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .form-grid.two { grid-template-columns: repeat(2, 1fr); } }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label { color: var(--dim); font-size: 12px; font-weight: 550; }
+.field input, .field select, .field textarea { width: 100%; }
+.field .sub { font-size: 11px; }
+
+#toasts { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; z-index: 90; left: 14px; align-items: flex-end; pointer-events: none; }
 .toast {
-  min-width: 240px; max-width: 380px; padding: 11px 15px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: var(--panel-2); backdrop-filter: var(--glass); box-shadow: var(--shadow);
-  font-size: 13px; animation: fadeUp .2s ease;
+  width: 100%; max-width: 420px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--panel-2); backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass); box-shadow: var(--shadow); font-size: 13px;
+  padding: 11px 14px; pointer-events: auto; transition: opacity .3s;
 }
-.toast.ok { border-color: rgba(62,207,142,.4); } .toast.err { border-color: rgba(244,112,103,.45); }
+.toast.ok { border-color: rgba(62,207,142,.4); }
+.toast.err { border-color: rgba(244,112,103,.45); }
+
 dialog {
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2);
-  backdrop-filter: var(--glass); color: var(--text); padding: 20px 22px; max-width: 420px; box-shadow: var(--shadow);
+  backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); color: var(--text);
+  padding: 20px 22px; width: min(92vw, 460px); max-width: 92vw;
+  max-height: 86dvh; overflow: auto; box-shadow: var(--shadow);
 }
 dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-
-.backdrop { display: none; }
-@media (max-width: 900px) {
-  .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .22s ease; }
-  .sidebar.open { transform: none; }
-  .backdrop { display: block; position: fixed; inset: 0; background: rgba(4,6,12,.5); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s; }
-  .backdrop.show { opacity: 1; pointer-events: auto; }
-  .menu-btn { display: grid !important; }
-  .conv-rail { position: absolute; z-index: 10; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .22s ease; width: 240px; }
-  .conv-rail.open { transform: none; }
-  .page { padding: 14px; }
-}
-.menu-btn { display: none; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 
 /* ---------- token login gate ---------- */
 .login-overlay {
-  position: fixed; inset: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
+  position: fixed; inset: 0; display: grid; place-items: center; z-index: 100; padding: 16px;
   background:
-    radial-gradient(900px 60% at 20% -10%, rgba(122,92,255,.18), transparent 60%),
-    radial-gradient(700px 50% at 90% 110%, rgba(58,124,255,.14), transparent 55%),
+    radial-gradient(900px 60% 20% -10%, rgba(122,92,255,.18), 60%),
+    radial-gradient(700px 50% 90% 110%, rgba(58,124,255,.14), 55%),
     rgba(7,9,15,.72);
   backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
 }
 .login-overlay[hidden] { display: none; }
 .login-card {
-  width: min(400px, 100%); padding: 28px 26px; text-align: center;
-  border: 1px solid var(--border); border-radius: var(--radius);
+  width: min(100%, 380px); text-align: center; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--panel-2); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); padding: 26px 22px;
 }
 .login-logo {
-  width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; margin: 0 auto;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
-  font-weight: 700; font-size: 18px; box-shadow: 0 8px 22px rgba(90,110,255,.35);
+  width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 13px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; font-size: 18px;
+  box-shadow: 0 10px 26px rgba(90,110,255,.35);
 }
-.login-card h1 { margin: 12px 0 4px; font-size: 20px; }
-.login-card .login-sub { color: var(--dim); font-size: 12.5px; margin: 0 0 18px; line-height: 1.55; }
+.login-card h1 { margin: 0 0 4px; font-size: 18px; }
+.login-card .login-sub { color: var(--dim); font-size: 12.5px; margin: 0 0 16px; line-height: 1.55; }
 .login-card input {
-  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 10px;
-  border: 1px solid var(--border); background: var(--panel); color: var(--text);
-  font: inherit; font-size: 14px;
+  width: 100%; min-height: var(--touch); border-radius: var(--radius-sm); margin-bottom: 12px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 10px 12px; font: inherit;
 }
-.login-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
-.login-card .btn { width: 100%; justify-content: center; }
+.login-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.login-card .btn { width: 100%; }
 .login-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin-top: 10px; }
-.login-note { color: var(--faint); font-size: 11px; margin: 10px 0 0; line-height: 1.55; }
+.login-note { color: var(--faint); font-size: 11px; margin: 14px 0 0; line-height: 1.55; }
 </style>
 </head>
 <body>
@@ -333,8 +376,9 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
           </div>
           <div class="chat-col">
             <div class="chat-toolbar">
+              <button class="btn sm" id="conv-toggle" aria-label="Show conversations">💬 Chats</button>
               <label class="sub" for="model-select">Model</label>
-              <select id="model-select" style="max-width:230px;"><option value="">loading…</option></select>
+              <select id="model-select"><option value="">loading…</option></select>
               <span class="pill" id="model-pill"><span class="dot"></span>active</span>
               <div class="spacer" style="flex:1"></div>
               <button class="btn sm" id="rename-conv">Rename</button>
@@ -379,6 +423,37 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
     <button class="btn danger" id="confirm-ok">Confirm</button>
   </div>
 </dialog>
+<dialog id="prompt-dialog">
+  <h3 id="prompt-title" style="margin:0 0 8px;">Input</h3>
+  <p id="prompt-label" class="sub" style="margin:0 0 8px;"></p>
+  <input type="text" id="prompt-input" autocomplete="off">
+  <div class="dialog-actions">
+    <button class="btn" id="prompt-cancel">Cancel</button>
+    <button class="btn primary" id="prompt-ok">OK</button>
+  </div>
+</dialog>
+<dialog id="profile-dialog">
+  <h3 id="profile-dialog-title" style="margin:0 0 10px;">New profile</h3>
+  <div class="form-grid">
+    <div class="field">
+      <label for="profile-id">Profile id</label>
+      <input type="text" id="profile-id" autocomplete="off" placeholder="a-z 0-9 - _ (1-64 chars)">
+      <span class="sub">Files are stored under config/profiles/&lt;id&gt;/.</span>
+    </div>
+    <div class="field">
+      <label for="profile-name">Display name</label>
+      <input type="text" id="profile-name" autocomplete="off">
+    </div>
+    <div class="field" id="profile-desc-field">
+      <label for="profile-desc">Description</label>
+      <input type="text" id="profile-desc" autocomplete="off">
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn" id="profile-cancel">Cancel</button>
+    <button class="btn primary" id="profile-ok">Create</button>
+  </div>
+</dialog>
 <div class="login-overlay" id="login-overlay" hidden>
   <form class="login-card" id="login-form" novalidate>
     <div class="login-logo">PC</div>
@@ -418,6 +493,27 @@ function confirmDialog(title, text, onOk) {
 }
 $("#confirm-cancel").addEventListener("click", () => $("#confirm-dialog").close());
 $("#confirm-ok").addEventListener("click", () => { $("#confirm-dialog").close(); if (confirmAction) confirmAction(); });
+
+/* Modal single-field input (mobile-friendly replacement for window.prompt). */
+let promptAction = null;
+function promptDialog(title, label, value, onOk) {
+  $("#prompt-title").textContent = title;
+  $("#prompt-label").textContent = label || "";
+  const input = $("#prompt-input");
+  input.value = value || "";
+  promptAction = onOk;
+  $("#prompt-dialog").showModal();
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+}
+$("#prompt-cancel").addEventListener("click", () => $("#prompt-dialog").close());
+$("#prompt-ok").addEventListener("click", submitPrompt);
+$("#prompt-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitPrompt(); } });
+function submitPrompt() {
+  const value = $("#prompt-input").value.trim();
+  $("#prompt-dialog").close();
+  if (promptAction && value) promptAction(value);
+  promptAction = null;
+}
 
 /* Every control-plane call goes through the application API. If the
  * dashboard is served with token authentication, the operator stores the
@@ -537,6 +633,14 @@ let currentPage = "chat";
 const pageLoaders = {};
 function showPage(name) {
   if (!PAGE_META[name]) name = "chat";
+  // Unsaved config edits warn before navigating away (in-app and reload).
+  if (name !== "config" && currentPage === "config" && typeof configDirty !== "undefined" && configDirty) {
+    confirmDialog("Unsaved changes", "Discard unsaved configuration changes and leave this page?", () => {
+      configDirty = false;
+      showPage(name);
+    });
+    return;
+  }
   currentPage = name;
   $$(".page").forEach((el) => el.classList.remove("active"));
   $("#page-" + name).classList.add("active");
@@ -549,9 +653,13 @@ function showPage(name) {
   if (pageLoaders[name]) pageLoaders[name]();
 }
 window.addEventListener("hashchange", () => showPage((location.hash || "").replace("#/", "")));
+window.addEventListener("beforeunload", (e) => {
+  if (typeof configDirty !== "undefined" && configDirty) { e.preventDefault(); e.returnValue = ""; }
+});
 $$(".nav-item").forEach((el) => el.addEventListener("click", () => showPage(el.dataset.page)));
 $("#menu-btn").addEventListener("click", () => { $("#sidebar").classList.add("open"); $("#backdrop").classList.add("show"); });
-$("#backdrop").addEventListener("click", () => { $("#sidebar").classList.remove("open"); $("#backdrop").classList.remove("show"); });
+$("#conv-toggle").addEventListener("click", () => { $("#conv-rail").classList.add("open"); $("#backdrop").classList.add("show"); });
+$("#backdrop").addEventListener("click", () => { $("#sidebar").classList.remove("open"); $("#conv-rail").classList.remove("open"); $("#backdrop").classList.remove("show"); });
 
 /* ---------------- status ---------------- */
 let runtimeStatus = null;
@@ -634,7 +742,11 @@ async function loadConversations() {
       item.setAttribute("role", "listitem");
       item.innerHTML = '<span class="nm"></span><span class="badge">' + Math.max(0, conv.messages - 1) + '</span>';
       item.querySelector(".nm").textContent = conv.chat_id;
-      item.addEventListener("click", () => { activeConv = conv.chat_id; localStorage.setItem("picoConv", activeConv); loadConversations(); loadHistory(); });
+      item.addEventListener("click", () => {
+        activeConv = conv.chat_id; localStorage.setItem("picoConv", activeConv);
+        $("#conv-rail").classList.remove("open"); $("#backdrop").classList.remove("show");
+        loadConversations(); loadHistory();
+      });
       rail.appendChild(item);
     }
   } catch (err) { toast("Could not load conversations: " + err.message, "err"); }
@@ -654,7 +766,13 @@ async function loadHistory() {
     for (const m of msgs) addBubble(m.role, m.content, m.role === "assistant" ? null : null);
     box.scrollTop = box.scrollHeight;
   } catch (err) {
-    box.innerHTML = '<div class="state err"><div class="big">⚠️</div>Could not load this conversation.<br><button class="btn sm" onclick="loadHistory()">Retry</button></div>';
+    // Show the real reason; SESSION_NOT_FOUND for a valid id cannot happen
+    // anymore (lazy empty conversation), so anything left is actionable.
+    const reason = err && err.message ? esc(err.message) : "Unknown error";
+    box.innerHTML = '<div class="state err"><div class="big">⚠️</div>Could not load this conversation.<br>' +
+      '<div class="sub" style="margin:6px 0 12px">' + reason + '</div>' +
+      '<div class="row-actions" style="justify-content:center"><button class="btn sm" onclick="loadHistory()">Retry</button>' +
+      '<button class="btn sm" onclick="newConversation()">New conversation</button></div></div>';
   }
 }
 window.loadHistory = loadHistory;
@@ -697,7 +815,7 @@ $("#chat-input").addEventListener("keydown", (e) => {
 });
 $("#send-btn").addEventListener("click", sendMessage);
 
-$("#new-conv").addEventListener("click", async () => {
+async function newConversation() {
   const id = "conv-" + Date.now().toString(36);
   try {
     await api("/api/sessions", { method: "POST", body: JSON.stringify({ chat_id: id }) });
@@ -705,13 +823,16 @@ $("#new-conv").addEventListener("click", async () => {
     await loadConversations(); loadHistory();
     toast("Conversation created.");
   } catch (err) { toast(err.message, "err"); }
-});
+}
+window.newConversation = newConversation;
+$("#new-conv").addEventListener("click", newConversation);
 $("#rename-conv").addEventListener("click", () => {
-  const name = prompt("New conversation id (a-z, 0-9, . _ -):", activeConv);
-  if (!name || name === activeConv) return;
-  api("/api/sessions/" + encodeURIComponent(activeConv) + "/rename", { method: "POST", body: JSON.stringify({ chat_id: name }) })
-    .then(() => { activeConv = name; localStorage.setItem("picoConv", name); loadConversations(); toast("Renamed."); })
-    .catch((err) => toast(err.message, "err"));
+  promptDialog("Rename conversation", "New conversation id (a-z, 0-9, . _ -):", activeConv, (name) => {
+    if (!name || name === activeConv) return;
+    api("/api/sessions/" + encodeURIComponent(activeConv) + "/rename", { method: "POST", body: JSON.stringify({ chat_id: name }) })
+      .then(() => { activeConv = name; localStorage.setItem("picoConv", name); loadConversations(); loadHistory(); toast("Renamed."); })
+      .catch((err) => toast(err.message, "err"));
+  });
 });
 $("#clear-conv").addEventListener("click", () => {
   confirmDialog("Clear conversation", "Reset the in-memory history of '" + activeConv + "'? Durable stores are untouched.", async () => {
@@ -825,7 +946,7 @@ pageLoaders.sessions = async () => {
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
   try {
     const list = await api("/api/sessions");
-    el.innerHTML = '<div class="card"><table><thead><tr><th>Session</th><th>Messages</th><th>Kind</th><th></th></tr></thead><tbody>' +
+    el.innerHTML = '<div class="card"><div class="table-wrap"><table><thead><tr><th>Session</th><th>Messages</th><th>Kind</th><th></th></tr></thead><tbody>' +
       (list.length
         ? list.map((s) =>
             '<tr><td class="mono">' + esc(s.chat_id) + '</td><td>' + s.messages + '</td><td>' +
@@ -833,7 +954,7 @@ pageLoaders.sessions = async () => {
               : (/^\d+$/.test(s.chat_id) ? '<span class="badge">telegram</span>' : '<span class="badge">local</span>')) +
             '</td><td><button class="btn sm danger" data-clear="' + esc(s.chat_id) + '">Clear</button></td></tr>').join("")
         : '<tr><td colspan="4">' + stateBlock("", "\uD83D\uDDC2", "No live sessions yet.") + '</td></tr>') +
-      '</tbody></table></div>';
+      '</tbody></table></div></div>';
     el.querySelectorAll("[data-clear]").forEach((btn) => btn.addEventListener("click", () => {
       const id = btn.dataset.clear;
       confirmDialog("Clear session", "Reset in-memory history for '" + id + "'?", async () => {
@@ -862,7 +983,7 @@ pageLoaders.models = async () => {
       '<div class="filters"><button class="btn sm primary" id="refresh-models">Refresh models</button>' +
       '<span class="pill"><span class="dot"></span>last fetched: ' + esc(fetched) + '</span>' +
       '<span class="pill"><span class="dot"></span>active: ' + esc(data.active_model) + '</span></div>' +
-      '<div class="card"><table><thead><tr><th>Model</th><th>Provider</th><th>Streaming</th><th>Vision</th><th>Tool calling</th><th>Context</th></tr></thead><tbody>' +
+      '<div class="card"><div class="table-wrap"><table><thead><tr><th>Model</th><th>Provider</th><th>Streaming</th><th>Vision</th><th>Tool calling</th><th>Context</th></tr></thead><tbody>' +
       (modelsCache.length
         ? modelsCache.map((m) =>
             '<tr><td><b>' + esc(m.display_name || m.id) + '</b>' +
@@ -871,7 +992,7 @@ pageLoaders.models = async () => {
             '<td>' + capBadge(m, "streaming") + '</td><td>' + capBadge(m, "vision") + '</td><td>' + capBadge(m, "tool_calling") + '</td>' +
             '<td>' + (m.context_limit ? m.context_limit.toLocaleString() : "\u2014") + '</td></tr>').join("")
         : '<tr><td colspan="6">' + stateBlock("", "\uD83E\uDDE0", "No models discovered yet. Refresh queries the provider models endpoint.") + '</td></tr>') +
-      '</tbody></table></div>';
+      '</tbody></table></div></div>';
     $("#refresh-models").addEventListener("click", async () => {
       modelsCache = [];
       try { await api("/api/models/refresh", { method: "POST" }); toast("Model list refreshed."); pageLoaders.models(); refreshStatus(); }
@@ -883,6 +1004,27 @@ pageLoaders.models = async () => {
 };
 
 /* ---------------- profiles ---------------- */
+/* Profile create/duplicate modal (replaces window.prompt chains). */
+function openProfileDialog(spec) {
+  $("#profile-dialog-title").textContent = spec.title;
+  $("#profile-ok").textContent = spec.submit;
+  $("#profile-id").value = spec.id || "";
+  $("#profile-name").value = spec.name || "";
+  $("#profile-desc").value = spec.description || "";
+  $("#profile-desc-field").style.display = spec.submit === "Duplicate" ? "none" : "";
+  $("#profile-ok").onclick = () => {
+    const values = {
+      id: $("#profile-id").value.trim(),
+      name: $("#profile-name").value.trim() || $("#profile-id").value.trim(),
+      description: $("#profile-desc").value.trim(),
+    };
+    if (!values.id) { toast("Profile id is required.", "err"); return; }
+    $("#profile-dialog").close();
+    spec.run(values).catch((err) => toast(err.message, "err"));
+  };
+  $("#profile-dialog").showModal();
+}
+
 pageLoaders.profiles = async () => {
   const el = $("#page-profiles");
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
@@ -904,14 +1046,11 @@ pageLoaders.profiles = async () => {
               '<button class="btn sm danger" data-del="' + esc(pr.id) + '">Delete</button></div>')).join("")
         : stateBlock("", "\uD83C\uDFAD", "No profiles yet. Create one to customize identity and instructions.")) +
       '</div><div id="profile-editor"></div>';
-    $("#new-profile").addEventListener("click", () => {
-      const id = prompt("Profile id (a-z, 0-9, - _):", "profile-" + Date.now().toString(36));
-      if (!id) return;
-      const name = prompt("Display name:", id) || id;
-      api("/api/profiles", { method: "POST", body: JSON.stringify({ id, name }) })
-        .then(() => { toast("Profile created."); pageLoaders.profiles(); })
-        .catch((err) => toast(err.message, "err"));
-    });
+    $("#new-profile").addEventListener("click", () => openProfileDialog({
+      title: "New profile", submit: "Create", id: "profile-" + Date.now().toString(36), name: "", description: "",
+      run: (values) => api("/api/profiles", { method: "POST", body: JSON.stringify(values) })
+        .then(() => { toast("Profile created."); pageLoaders.profiles(); }),
+    }));
     el.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => editProfile(b.dataset.edit)));
     el.querySelectorAll("[data-activate]").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.activate;
@@ -920,12 +1059,11 @@ pageLoaders.profiles = async () => {
         catch (err) { toast(err.message, "err"); }
       });
     }));
-    el.querySelectorAll("[data-dup]").forEach((b) => b.addEventListener("click", async () => {
-      const nid = prompt("New profile id:", b.dataset.dup + "-copy");
-      if (!nid) return;
-      try { await api("/api/profiles", { method: "POST", body: JSON.stringify({ id: nid, source: b.dataset.dup, name: nid }) }); toast("Duplicated."); pageLoaders.profiles(); }
-      catch (err) { toast(err.message, "err"); }
-    }));
+    el.querySelectorAll("[data-dup]").forEach((b) => b.addEventListener("click", () => openProfileDialog({
+      title: 'Duplicate "' + b.dataset.dup + '"', submit: "Duplicate", id: b.dataset.dup + "-copy", name: b.dataset.dup + " copy", description: "",
+      run: (values) => api("/api/profiles", { method: "POST", body: JSON.stringify(Object.assign({ source: b.dataset.dup }, values)) })
+        .then(() => { toast("Duplicated."); pageLoaders.profiles(); }),
+    })));
     el.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.del;
       confirmDialog("Delete profile", "Permanently delete profile '" + id + "'? The active profile cannot be deleted.", async () => {
@@ -977,7 +1115,7 @@ pageLoaders.skills = async () => {
   el.innerHTML = '<div class="card">' + skeletonBlock(3) + '</div>';
   try {
     const list = await api("/api/skills");
-    el.innerHTML = '<div class="card"><table><thead><tr><th>Skill</th><th>Tool</th><th>Permission</th><th>State</th><th></th></tr></thead><tbody>' +
+    el.innerHTML = '<div class="card"><div class="table-wrap"><table><thead><tr><th>Skill</th><th>Tool</th><th>Permission</th><th>State</th><th></th></tr></thead><tbody>' +
       list.map((s) =>
         '<tr><td><b>' + esc(s.id) + '</b><br><span class="sub">' + esc(s.description) + '</span></td>' +
         '<td>' + (s.tool ? '<span class="mono">' + esc(s.tool) + '</span>' : '<span class="badge">reasoning only</span>') + '</td>' +
@@ -985,7 +1123,7 @@ pageLoaders.skills = async () => {
         '<td>' + (s.enabled ? '<span class="badge ok">enabled</span>' : '<span class="badge">disabled</span>') + '</td>' +
         '<td><button class="btn sm ' + (s.enabled ? "danger" : "primary") + '" data-skill="' + esc(s.id) + '" data-next="' + (s.enabled ? "disable" : "enable") + '">' +
         (s.enabled ? "Disable" : "Enable") + '</button></td></tr>').join("") +
-      '</tbody></table></div>' +
+      '</tbody></table></div></div>' +
       '<div class="hint" style="text-align:left">Skills are metadata from the runtime registry; disabling a skill also disables its linked tool for the agent.</div>';
     el.querySelectorAll("[data-skill]").forEach((btn) => btn.addEventListener("click", async () => {
       try {
@@ -1004,7 +1142,7 @@ pageLoaders.tools = async () => {
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
   try {
     const list = await api("/api/tools");
-    el.innerHTML = '<div class="card"><table><thead><tr><th>Tool</th><th>Parameters</th><th>Permission</th><th>Risk</th><th>State</th><th></th></tr></thead><tbody>' +
+    el.innerHTML = '<div class="card"><div class="table-wrap"><table><thead><tr><th>Tool</th><th>Parameters</th><th>Permission</th><th>Risk</th><th>State</th><th></th></tr></thead><tbody>' +
       list.map((t) =>
         '<tr><td><b>' + esc(t.name) + '</b><br><span class="sub">' + esc(t.description) + '</span></td>' +
         '<td>' + (t.parameters.length
@@ -1015,7 +1153,7 @@ pageLoaders.tools = async () => {
         '<td>' + (t.enabled ? '<span class="badge ok">enabled</span>' : '<span class="badge">disabled</span>') + '</td>' +
         '<td><button class="btn sm ' + (t.enabled ? "danger" : "primary") + '" data-tool="' + esc(t.name) + '" data-next="' + (t.enabled ? "disable" : "enable") + '">' +
         (t.enabled ? "Disable" : "Enable") + '</button></td></tr>').join("") +
-      '</tbody></table></div>';
+      '</tbody></table></div></div>';
     el.querySelectorAll("[data-tool]").forEach((btn) => btn.addEventListener("click", async () => {
       try {
         await api("/api/tools/" + encodeURIComponent(btn.dataset.tool) + "/" + btn.dataset.next, { method: "POST" });
@@ -1043,14 +1181,14 @@ pageLoaders.memory = async () => {
       '<button class="btn sm" id="mem-search-btn">Search</button>' +
       '<button class="btn sm danger" id="mem-clear-btn">Clear' + (memoryFilter ? " " + memoryFilter : " all") + '</button></div>' +
       '<div id="mem-results"></div>' +
-      '<div class="card"><table><thead><tr><th>Type</th><th>Content</th><th>Importance</th><th>Id</th><th></th></tr></thead><tbody>' +
+      '<div class="card"><div class="table-wrap"><table><thead><tr><th>Type</th><th>Content</th><th>Importance</th><th>Id</th><th></th></tr></thead><tbody>' +
       (data.entries.length
         ? data.entries.map((e) =>
             '<tr><td><span class="badge">' + esc(e.type) + '</span></td><td>' + esc(e.content) + '</td>' +
             '<td>' + Number(e.importance || 0).toFixed(1) + '</td><td class="mono">' + e.id + '</td>' +
             '<td><button class="btn sm danger" data-forget="' + e.id + '">Forget</button></td></tr>').join("")
         : '<tr><td colspan="5">' + stateBlock("", "\uD83D\uDCDA", "No memory entries" + (memoryFilter ? " of this type" : "") + ".") + '</td></tr>') +
-      '</tbody></table></div>';
+      '</tbody></table></div></div>';
     el.querySelectorAll(".chip").forEach((chip) => chip.addEventListener("click", () => { memoryFilter = chip.dataset.type; pageLoaders.memory(); }));
     el.querySelectorAll("[data-forget]").forEach((btn) => btn.addEventListener("click", () => {
       confirmDialog("Forget memory", "Permanently forget entry #" + btn.dataset.forget + "?", async () => {
@@ -1058,15 +1196,15 @@ pageLoaders.memory = async () => {
         catch (err) { toast(err.message, "err"); }
       });
     }));
-    $("#mem-search-btn").addEventListener("click", async () => {
-      const query = prompt("Search memory for:");
-      if (!query) return;
-      try {
+    $("#mem-search-btn").addEventListener("click", () => {
+      promptDialog("Search memory", "Search memory for:", "", async (query) => {
+        try {
         const res = await api("/api/memory/search", { method: "POST", body: JSON.stringify({ query }) });
-        $("#mem-results").innerHTML = '<div class="card fade"><h3>Matches for "' + esc(query) + '"</h3>' +
-          (res.matches.length ? res.matches.map((e) => '<div class="stage done"><span class="mark">\u2022</span><span><span class="badge">' + esc(e.type) + '</span> ' + esc(e.content) + '</span></div>').join("")
-            : '<div class="sub">No matches.</div>') + '</div>';
-      } catch (err) { toast(err.message, "err"); }
+          $("#mem-results").innerHTML = '<div class="card fade"><h3>Matches for "' + esc(query) + '"</h3>' +
+            (res.matches.length ? res.matches.map((e) => '<div class="stage done"><span class="mark">\u2022</span><span><span class="badge">' + esc(e.type) + '</span> ' + esc(e.content) + '</span></div>').join("")
+              : '<div class="sub">No matches.</div>') + '</div>';
+        } catch (err) { toast(err.message, "err"); }
+      });
     });
     $("#mem-clear-btn").addEventListener("click", () => {
       confirmDialog("Clear memory", "Clear " + (memoryFilter ? "all '" + memoryFilter + "' entries" : "ALL memory entries") + "? This cannot be undone.", async () => {
@@ -1106,12 +1244,19 @@ pageLoaders.gateways = async () => {
         '<div class="row-actions" style="margin-top:12px">' +
         '<button class="btn sm" data-gw="enable">Enable</button>' +
         '<button class="btn sm" data-gw="disable">Disable</button>' +
-        '<button class="btn sm" data-gw="start">Start</button>' +
-        '<button class="btn sm" data-gw="stop">Stop</button>' +
-        '<button class="btn sm" data-gw="restart">Restart</button>' +
-        '<button class="btn sm primary" data-gw="test">Test connection</button></div>');
-    }).join("") + '</div>' +
-      '<div class="hint" style="text-align:left">Lifecycle note: this dashboard process is single-threaded and shares one agent stack, so it cannot host the Telegram poll loop. Run the channel with <span class="mono">pico_claw channel telegram</span>; Test connection performs a real API check.</div>';
+        '<button class="btn sm primary" data-gw="test">Test connection</button>' +
+        // Start/Stop/Restart are rendered only when this process can truly
+        // host the channel loop (can_host). In serve mode they would always
+        // fail with GATEWAY_LIFECYCLE_UNSUPPORTED, so they are not shown.
+        (g.can_host
+          ? '<button class="btn sm" data-gw="start">Start</button>' +
+            '<button class="btn sm" data-gw="stop">Stop</button>' +
+            '<button class="btn sm" data-gw="restart">Restart</button>'
+          : '') +
+        '</div>' +
+        (g.can_host ? '' :
+          '<div class="hint" style="text-align:left;margin-top:10px">The Telegram poll loop runs outside this dashboard process. Start it with <span class="mono">pico_claw channel telegram</span>; status above reflects this process, and Test connection performs a real Telegram API check.</div>'));
+    }).join("") + '</div>';
     el.querySelectorAll("[data-gw]").forEach((btn) => btn.addEventListener("click", async () => {
       try {
         await api("/api/gateways/telegram/" + btn.dataset.gw, { method: "POST" });
@@ -1308,40 +1453,179 @@ pageLoaders.files = async () => {
   }
 };
 
+let configBaseline = null;
+let configDirty = false;
+
+function configCollect() {
+  const num = (id) => parseFloat($(id).value);
+  const val = (id) => $(id).value.trim();
+  return {
+    agent_name: val("#cfg-agent-name"),
+    model: val("#cfg-model"),
+    base_url: val("#cfg-base-url"),
+    system_prompt: $("#cfg-system-prompt").value,
+    temperature: num("#cfg-temperature"),
+    max_tokens: num("#cfg-max-tokens"),
+    task_max_attempts: num("#cfg-attempts"),
+    request_timeout_ms: num("#cfg-timeout"),
+    soul_path: val("#cfg-soul-path"),
+    memory_path: val("#cfg-memory-path"),
+    soul_budget_bytes: num("#cfg-soul-budget"),
+    memory_budget_bytes: num("#cfg-mem-budget"),
+    owner_budget_bytes: num("#cfg-owner-budget"),
+    routing_local_only: $("#cfg-local-only").value === "true",
+    teacher_base_url: val("#cfg-teacher-url"),
+    teacher_model: val("#cfg-teacher-model"),
+  };
+}
+
+function configDiffers(next) {
+  return Object.keys(next).some((k) => {
+    const base = configBaseline[k];
+    const value = next[k];
+    if (typeof base === "number") return !(Math.abs((Number(value) || 0) - base) < 1e-9);
+    if (typeof base === "boolean") return Boolean(value) !== base;
+    return String(value) !== String(base);
+  });
+}
+
+function configMarkDirty() {
+  if (!configBaseline) return;
+  configDirty = configDiffers(configCollect());
+  $("#config-hint").textContent = configDirty ? "Unsaved changes \u2014 they only take effect after Save." : "";
+}
+
+function configRenderSaveResult(result) {
+  const parts = [];
+  if (result.applied && result.applied.length) parts.push("Applied now: " + result.applied.join(", "));
+  if (result.requires_restart && result.requires_restart.length) parts.push("Saved, restart required: " + result.requires_restart.join(", "));
+  if (result.ignored && result.ignored.length) parts.push("Ignored (secrets stay environment-only): " + result.ignored.join(", "));
+  if (!parts.length) parts.push("No changes.");
+  toast("Configuration saved. " + parts.join(" \u00b7 "), result.ignored && result.ignored.length ? "err" : "ok");
+  $("#config-hint").textContent = parts.join(" \u00b7 ");
+  refreshStatus();
+}
+
 pageLoaders.config = async () => {
   const el = $("#page-config");
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
   try {
     const cfg = await api("/api/config");
-    el.innerHTML = '<div class="grid cols-3">' +
-      cardEl("Provider",
-        kv("Endpoint", esc(cfg.provider.endpoint)) +
-        kv("Configured", cfg.provider.configured ? '<span class="badge ok">yes</span>' : '<span class="badge warn">incomplete</span>') +
-        kv("API key", cfg.provider.api_key_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge warn">missing</span>') +
-        kv("Active model", esc(cfg.provider.active_model)) +
-        kv("Models known", cfg.provider.model_count)) +
-      cardEl("Telegram",
-        kv("Configured", cfg.telegram.configured ? '<span class="badge ok">yes</span>' : '<span class="badge">no</span>') +
-        kv("Token", cfg.telegram.token_set ? '<span class="badge ok">set (hidden)</span>' : '<span class="badge">not set</span>') +
-        kv("Enabled", cfg.telegram.enabled ? "yes" : "no") +
-        kv("State", esc(cfg.telegram.state)) +
-        kv("Allowed users", cfg.telegram.allowed_users)) +
-      cardEl("Runtime",
-        kv("Workspace", esc(cfg.runtime.workspace)) +
-        kv("Data directory", esc(cfg.runtime.data_dir)) +
-        kv("Dashboard", esc(cfg.runtime.dashboard_host) + ":" + cfg.runtime.dashboard_port) +
-        kv("Auth", cfg.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">loopback, no token</span>')) +
-      (cfg.owner ? cardEl("Owner context",
-        kv("SOUL.md", esc(cfg.owner.soul)) + kv("MEMORY.md", esc(cfg.owner.memory)) + kv("Active profile", esc(cfg.owner.active_profile || "none"))) : "") +
-      cardEl("Routing",
-        kv("Teacher", cfg.routing.teacher_configured ? "configured" : "disabled") +
-        kv("Local-only mode", cfg.routing.local_only ? "on" : "off")) +
-      '</div>';
+    const ed = cfg.editable || {};
+    const lim = ed.limits || {};
+    configBaseline = {
+      agent_name: ed.agent_name || "", model: ed.model || "", base_url: ed.base_url || "",
+      system_prompt: ed.system_prompt || "", temperature: Number(ed.temperature) || 0,
+      max_tokens: Number(ed.max_tokens) || 0, task_max_attempts: Number(ed.task_max_attempts) || 1,
+      request_timeout_ms: Number(ed.request_timeout_ms) || 0, soul_path: ed.soul_path || "",
+      memory_path: ed.memory_path || "", soul_budget_bytes: Number(ed.soul_budget_bytes) || 0,
+      memory_budget_bytes: Number(ed.memory_budget_bytes) || 0,
+      owner_budget_bytes: Number(ed.owner_budget_bytes) || 0,
+      routing_local_only: Boolean(ed.routing_local_only),
+      teacher_base_url: ed.teacher_base_url || "", teacher_model: ed.teacher_model || "",
+    };
+    configDirty = false;
+    renderConfigForm(cfg, ed, lim);
   } catch (err) {
     el.innerHTML = stateBlock("err", "\u26a0", "Could not load config: " + esc(err.message), "pageLoaders.config()");
   }
 };
 
+function renderConfigForm(cfg, ed, lim) {
+  const el = $("#page-config");
+  const fact = (k, v) => kv(k, v);
+  const field = (id, label, attrs, note) =>
+    '<div class="field"><label for="' + id + '">' + label + '</label>' +
+    '<input id="' + id + '" ' + (attrs || "") + '>' +
+    (note ? '<span class="sub">' + note + '</span>' : '') + '</div>';
+  const B = configBaseline;
+
+  el.innerHTML =
+    '<div class="filters">' +
+      '<button class="btn sm primary" id="config-save">Save configuration</button>' +
+      '<button class="btn sm" id="config-reset">Discard changes</button>' +
+      '<span class="sub" id="config-hint"></span>' +
+    '</div>' +
+    '<div class="grid cols-3">' +
+      cardEl("Provider (facts)",
+        fact("Endpoint", esc(cfg.provider.endpoint)) +
+        fact("API key", cfg.provider.api_key_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge warn">missing — set it in the server environment</span>') +
+        fact("Active model", esc(cfg.provider.active_model)) +
+        fact("Models known", cfg.provider.model_count)) +
+      cardEl("Telegram (facts)",
+        fact("Token", cfg.telegram.token_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge">not set</span>') +
+        fact("Enabled", cfg.telegram.enabled ? "yes" : "no") +
+        fact("State", esc(cfg.telegram.state)) +
+        fact("Allowed users", cfg.telegram.allowed_users)) +
+      cardEl("Runtime (facts)",
+        fact("Workspace", esc(cfg.runtime.workspace)) +
+        fact("Data directory", esc(cfg.runtime.data_dir)) +
+        fact("Config file", esc(cfg.runtime.config_path)) +
+        fact("Dashboard", esc(cfg.runtime.dashboard_host) + ":" + cfg.runtime.dashboard_port) +
+        fact("Auth", cfg.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">loopback, no token</span>')) +
+    '</div>' +
+    '<div class="sec-head"><h2>Editable configuration</h2><div class="spacer"></div>' +
+      '<span class="sub">Writes config/config.json atomically. Secrets are environment-only and never editable here.</span></div>' +
+    '<div class="card"><div class="form-grid two">' +
+      field("cfg-agent-name", "Agent name", 'value="' + esc(B.agent_name) + '" maxlength="64"', "Restart required.") +
+      field("cfg-model", "Configured model", 'value="' + esc(B.model) + '" maxlength="256"', "Runtime model switching lives on the Settings page.") +
+      field("cfg-base-url", "Provider endpoint (base_url)", 'value="' + esc(B.base_url) + '"', "Restart required. http(s) URL.") +
+      field("cfg-temperature", "Temperature (0-2)", 'type="number" step="0.1" min="0" max="2" value="' + B.temperature + '"', "Applies immediately.") +
+      field("cfg-max-tokens", "Max tokens", 'type="number" min="1" max="' + (lim.max_tokens_max || 2000000) + '" value="' + B.max_tokens + '"', "Applies immediately.") +
+      field("cfg-attempts", "Task max attempts (1-5)", 'type="number" min="1" max="' + (lim.task_attempts_max || 5) + '" value="' + B.task_max_attempts + '"', "Applies immediately.") +
+      field("cfg-timeout", "Request timeout (ms)", 'type="number" min="1" max="' + (lim.request_timeout_max_ms || 600000) + '" value="' + B.request_timeout_ms + '"', "Applies immediately.") +
+      field("cfg-soul-path", "SOUL path", 'value="' + esc(B.soul_path) + '" maxlength="256"', "Relative workspace path. Restart required.") +
+      field("cfg-memory-path", "Memory path", 'value="' + esc(B.memory_path) + '" maxlength="256"', "Relative workspace path. Restart required.") +
+      field("cfg-soul-budget", "SOUL budget bytes", 'type="number" min="0" max="' + (lim.budget_section_max_bytes || 1048576) + '" value="' + B.soul_budget_bytes + '"', "Restart required.") +
+      field("cfg-mem-budget", "Memory budget bytes", 'type="number" min="0" max="' + (lim.budget_section_max_bytes || 1048576) + '" value="' + B.memory_budget_bytes + '"', "Restart required.") +
+      field("cfg-owner-budget", "Owner budget bytes", 'type="number" min="0" max="' + (lim.budget_max_bytes || 2097152) + '" value="' + B.owner_budget_bytes + '"', "Restart required.") +
+      field("cfg-teacher-url", "Teacher endpoint (optional)", 'value="' + esc(B.teacher_base_url) + '"', "Both teacher fields or neither. Restart required.") +
+      field("cfg-teacher-model", "Teacher model (optional)", 'value="' + esc(B.teacher_model) + '"', "Restart required.") +
+      '<div class="field"><label for="cfg-local-only">Local-only routing (privacy mode)</label>' +
+        '<select id="cfg-local-only"><option value="false">off</option><option value="true">on</option></select>' +
+        '<span class="sub">Applies to conversations created from now on.</span></div>' +
+    '</div>' +
+    '<div class="field" style="margin-top:12px"><label for="cfg-system-prompt">System prompt</label>' +
+      '<textarea id="cfg-system-prompt" class="editor" spellcheck="false"></textarea>' +
+      '<span class="sub">Restart required. Active profiles compose into the prompt for new conversations.</span></div>' +
+    '</div>';
+
+  $("#cfg-system-prompt").value = B.system_prompt;
+  $("#cfg-local-only").value = B.routing_local_only ? "true" : "false";
+
+  el.querySelectorAll("input, textarea, select").forEach((input) => {
+    input.addEventListener("input", configMarkDirty);
+    input.addEventListener("change", configMarkDirty);
+  });
+  $("#config-reset").addEventListener("click", () => pageLoaders.config());
+
+  $("#config-save").addEventListener("click", async () => {
+    const next = configCollect();
+    if (!configDiffers(next)) { $("#config-hint").textContent = "No changes to save."; return; }
+    // Send only fields that actually changed so the response reports an
+    // honest applied / requires_restart split.
+    const body = {};
+    for (const key of Object.keys(next)) {
+      const base = configBaseline[key];
+      if (typeof base === "number") { if (!(Math.abs((Number(next[key]) || 0) - base) < 1e-9)) body[key] = Number(next[key]); }
+      else if (typeof base === "boolean") { if (Boolean(next[key]) !== base) body[key] = Boolean(next[key]); }
+      else if (String(next[key]) !== String(base)) body[key] = next[key];
+    }
+    const btn = $("#config-save");
+    btn.disabled = true;
+    try {
+      const result = await api("/api/config", { method: "PUT", body: JSON.stringify(body) });
+      configBaseline = Object.assign({}, configBaseline, body);
+      configDirty = false;
+      configRenderSaveResult(result);
+    } catch (err) {
+      toast(err.code + ": " + err.message, "err");
+      $("#config-hint").textContent = "Save failed: " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
 /* ---------------- settings ---------------- */
 pageLoaders.settings = async () => {
   const el = $("#page-settings");
@@ -1402,7 +1686,7 @@ pageLoaders.logs = async () => {
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
   try {
     const runs = await api("/api/runs");
-    el.innerHTML = '<div class="card"><table><thead><tr><th>Run</th><th>State</th><th>Route</th><th>Duration</th><th>Started</th><th>Error</th><th></th></tr></thead><tbody>' +
+    el.innerHTML = '<div class="card"><div class="table-wrap"><table><thead><tr><th>Run</th><th>State</th><th>Route</th><th>Duration</th><th>Started</th><th>Error</th><th></th></tr></thead><tbody>' +
       (runs.length
         ? runs.map((r) =>
             '<tr><td class="mono">#' + r.id + '</td>' +
@@ -1412,7 +1696,7 @@ pageLoaders.logs = async () => {
             '<td>' + (r.error ? '<span class="trend-err">' + esc(r.error) + '</span>' : "\u2014") + '</td>' +
             '<td><button class="btn sm" data-run="' + r.id + '">Inspect</button></td></tr>').join("")
         : '<tr><td colspan="7">' + stateBlock("", "\uD83E\uFE9F", "No runs recorded yet. Chat with the agent to generate runs.") + '</td></tr>') +
-      '</tbody></table></div><div id="run-detail"></div>';
+      '</tbody></table></div></div><div id="run-detail"></div>';
     el.querySelectorAll("[data-run]").forEach((btn) => btn.addEventListener("click", () => inspectRun(btn.dataset.run)));
   } catch (err) {
     el.innerHTML = stateBlock("err", "\u26a0", "Could not load runs: " + esc(err.message), "pageLoaders.logs()");
@@ -1445,7 +1729,7 @@ async function inspectRun(id) {
 
 /* ---------------- init ---------------- */
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { $("#sidebar").classList.remove("open"); $("#backdrop").classList.remove("show"); }
+  if (e.key === "Escape") { $("#sidebar").classList.remove("open"); $("#conv-rail").classList.remove("open"); $("#backdrop").classList.remove("show"); }
 });
 let statusTimer = null;
 function startApp() {

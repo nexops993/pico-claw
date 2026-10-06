@@ -122,7 +122,7 @@ pub fn main(
 
     ui.banner(io, "Pico Claw", "Personal AI Agent");
 
-    const config =
+    var config =
         Config.load(
             allocator,
         ) catch |err| {
