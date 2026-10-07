@@ -173,7 +173,8 @@ pub fn main(
         .{
             .read = true,
             .write = true,
-            .execute = false,
+            .execute = true,
+            .executable_commands = &.{ "uname", "uptime", "free", "df", "date", "hostname", "whoami", "cat", "ls", "echo", "head", "tail", "wc", "grep", "ps", "/opt/pdfkit/bin/python", "/opt/pdfkit/make_pdf.py", "unzip", "tar", "gzip", "gunzip", "file", "mkdir", "cp", "mv", "sort", "find" },
             .env_allowlist = &.{ "PATH", "SystemRoot", "SYSTEMROOT", "SystemDrive", "ComSpec", "PATHEXT", "TEMP", "TMP" },
         },
         runtime_sandbox.Limits{},

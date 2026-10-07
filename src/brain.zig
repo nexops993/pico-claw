@@ -27,7 +27,7 @@ pub const Brain = struct {
     allocator: std.mem.Allocator,
     provider: ChatProvider,
     tools: *const ToolRegistry,
-    max_tool_calls: usize = 4,
+    max_tool_calls: usize = 48,
     /// Bounded budget for malformed `<tool_call>` repair attempts per
     /// `respond`. After it is exhausted the respond fails honestly with
     /// `error.MalformedToolCall` instead of looping with the provider.

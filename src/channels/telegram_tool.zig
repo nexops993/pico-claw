@@ -41,12 +41,14 @@ pub const Op = enum {
     get_me,
     get_chat,
     send_message,
+    send_document,
 
     pub fn name(self: Op) []const u8 {
         return switch (self) {
             .get_me => "get_me",
             .get_chat => "get_chat",
             .send_message => "send_message",
+            .send_document => "send_document",
         };
     }
 };
@@ -56,10 +58,14 @@ pub const Request = struct {
     chat_id: ?i64 = null,
     /// Owned copy of the message text (free with deinit).
     text: []u8 = &.{},
+    /// Owned copy of the document path (free with deinit).
+    file_path: []u8 = &.{},
 
     pub fn deinit(self: *Request, allocator: std.mem.Allocator) void {
         if (self.text.len > 0) allocator.free(self.text);
+        if (self.file_path.len > 0) allocator.free(self.file_path);
         self.text = &.{};
+        self.file_path = &.{};
     }
 };
 
@@ -69,6 +75,7 @@ pub fn parseRequest(allocator: std.mem.Allocator, input: []const u8) Fault!Reque
         op: []const u8 = "",
         chat_id: ?i64 = null,
         text: []const u8 = "",
+        file_path: []const u8 = "",
     };
     const parsed = std.json.parseFromSlice(Parsed, allocator, input, .{}) catch
         return error.InvalidInput;
@@ -81,7 +88,7 @@ pub fn parseRequest(allocator: std.mem.Allocator, input: []const u8) Fault!Reque
     }
     const operation = op orelse return error.UnsupportedOperation;
 
-    var request = Request{ .op = operation, .text = try allocator.dupe(u8, parsed.value.text) };
+    var request = Request{ .op = operation, .text = try allocator.dupe(u8, parsed.value.text), .file_path = try allocator.dupe(u8, parsed.value.file_path) };
     errdefer request.deinit(allocator);
     if (parsed.value.chat_id) |chat_id| request.chat_id = chat_id;
     switch (operation) {
@@ -91,6 +98,10 @@ pub fn parseRequest(allocator: std.mem.Allocator, input: []const u8) Fault!Reque
             if (request.chat_id == null) return error.InvalidChatId;
             if (std.mem.trim(u8, request.text, " \t\r\n").len == 0) return error.InvalidInput;
             if (request.text.len > max_tool_text_bytes) return error.TextTooLong;
+        },
+        .send_document => {
+            if (request.chat_id == null) return error.InvalidChatId;
+            if (std.mem.trim(u8, request.file_path, " \t\r\n").len == 0) return error.InvalidInput;
         },
     }
     return request;
@@ -129,7 +140,7 @@ pub const TelegramTool = struct {
     pub fn tool(self: *TelegramTool) Tool {
         return .{
             .name = "telegram",
-            .description = "Telegram actions: get_me, get_chat, send_message (allowlisted chats only)",
+            .description = "Telegram actions: get_me, get_chat, send_message, send_document (allowlisted chats only)",
             .context = self,
             .executeFn = executeErased,
             .permission = .network,
@@ -138,6 +149,7 @@ pub const TelegramTool = struct {
                 .{ .name = "op", .description = "get_me | get_chat | send_message", .required = true },
                 .{ .name = "chat_id", .description = "Numeric Telegram chat id (get_chat/send_message)", .required = false },
                 .{ .name = "text", .description = "Message text for send_message (bounded)", .required = false },
+                .{ .name = "file_path", .description = "Absolute host file path for send_document", .required = false },
             },
         };
     }
@@ -159,6 +171,11 @@ pub const TelegramTool = struct {
             .send_message => {
                 if (!self.sendAllowed(request.chat_id.?)) return error.NotAllowed;
                 try client.sendMessage(request.chat_id.?, request.text);
+                return allocator.dupe(u8, "{\"ok\":true,\"sent\":true}");
+            },
+            .send_document => {
+                if (!self.sendAllowed(request.chat_id.?)) return error.NotAllowed;
+                _ = try client.sendDocument(request.chat_id.?, request.file_path);
                 return allocator.dupe(u8, "{\"ok\":true,\"sent\":true}");
             },
         }

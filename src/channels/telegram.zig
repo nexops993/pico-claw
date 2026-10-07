@@ -141,11 +141,24 @@ const ChatJson = struct {
     type: []const u8 = "",
 };
 
+const FileJson = struct {
+    file_id: []const u8 = "",
+    file_name: []const u8 = "",
+};
+
+const PhotoSizeJson = struct {
+    file_id: []const u8 = "",
+};
+
 const MessageJson = struct {
     message_id: i64 = 0,
     from: ?UserJson = null,
     chat: ChatJson = .{},
     text: []const u8 = "",
+    caption: []const u8 = "",
+    document: ?FileJson = null,
+    video: ?FileJson = null,
+    photo: ?[]PhotoSizeJson = null,
 };
 
 const UpdateJson = struct {
@@ -424,6 +437,71 @@ pub const Client = struct {
     /// POST `<base>/bot<token>/<method>` with a JSON body and return the
     /// owned response body. The URL contains the bot token and is therefore
     /// never logged; diagnostics use the method name and status code only.
+    /// Resolve a file_id into download info via getFile. Returns raw JSON.
+    pub fn getFile(self: *const Client, file_id: []const u8) ![]u8 {
+        // Telegram file_id chars are [A-Za-z0-9_-]; a length check is a
+        // sufficient guard for a JSON string body here.
+        if (file_id.len == 0 or file_id.len > 256) return error.InvalidInput;
+        const body = try std.fmt.allocPrint(self.allocator, "{{\"file_id\":\"{s}\"}}", .{file_id});
+        defer self.allocator.free(body);
+        return self.post("getFile", body);
+    }
+
+    /// Send a local file as a document via multipart/form-data.
+    pub fn sendDocument(self: *const Client, chat_id: i64, file_path: []const u8) ![]u8 {
+        var file_dir = std.Io.Dir.cwd();
+        const file_contents = file_dir.readFileAlloc(
+            self.io,
+            file_path,
+            self.allocator,
+            .limited(50 * 1024 * 1024),
+        ) catch |err| {
+            ui.debugOut("[Telegram] sendDocument read failed ({s}): {s}\n", .{ file_path, @errorName(err) });
+            return error.DocumentReadFailed;
+        };
+        defer self.allocator.free(file_contents);
+        const basename = std.fs.path.basename(file_path);
+        const boundary = "----pico_claw_form_boundary_7d1a2c9f";
+        var body = std.Io.Writer.Allocating.init(self.allocator);
+        defer body.deinit();
+        const w = &body.writer;
+        try w.print("--{s}\r\nContent-Disposition: form-data; name=\"chat_id\"\r\n\r\n{d}\r\n", .{ boundary, chat_id });
+        try w.print("--{s}\r\nContent-Disposition: form-data; name=\"document\"; filename=\"{s}\"\r\nContent-Type: application/octet-stream\r\n\r\n", .{ boundary, basename });
+        try w.writeAll(file_contents);
+        try w.print("\r\n--{s}--\r\n", .{boundary});
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/bot{s}/sendDocument", .{ self.base_url, self.token });
+        defer self.allocator.free(url);
+        const ct = try std.fmt.allocPrint(self.allocator, "multipart/form-data; boundary={s}", .{boundary});
+        defer self.allocator.free(ct);
+        var client: std.http.Client = .{ .allocator = self.allocator, .io = self.io };
+        defer client.deinit();
+        const uri = try std.Uri.parse(url);
+        var request = try client.request(.POST, uri, .{
+            .headers = .{
+                .content_type = .{ .override = ct },
+                .accept_encoding = .{ .override = "identity" },
+            },
+        });
+        defer request.deinit();
+        const mutable_body = try self.allocator.dupe(u8, body.written());
+        defer self.allocator.free(mutable_body);
+        try request.sendBodyComplete(mutable_body);
+        var redirect_buffer: [4096]u8 = undefined;
+        var response = try request.receiveHead(&redirect_buffer);
+        if (response.head.status != .ok) {
+            ui.debugOut("[Telegram] sendDocument failed: HTTP {d}\n", .{@intFromEnum(response.head.status)});
+            return error.ApiRequestFailed;
+        }
+        var response_body = std.Io.Writer.Allocating.init(self.allocator);
+        defer response_body.deinit();
+        var transfer_buffer: [16 * 1024]u8 = undefined;
+        var reader = response.reader(&transfer_buffer);
+        _ = try reader.streamRemaining(&response_body.writer);
+        const result = try self.allocator.dupe(u8, response_body.written());
+        try checkApiOk(self.allocator, result);
+        return result;
+    }
+
     fn post(self: *const Client, method: []const u8, body: []const u8) ![]u8 {
         const url = try std.fmt.allocPrint(
             self.allocator,
@@ -606,9 +684,155 @@ pub const Runtime = struct {
             if (update.message) |*message| {
                 if (try normalizeMessage(self.allocator, message)) |inbound| {
                     self.handleUpdate(inbound);
+                } else if (messageHasMedia(message)) {
+                    // Media message: download to workspace/uploads and feed
+                    // the agent a text note describing the saved file.
+                    self.handleMediaUpdate(message) catch |err| {
+                        ui.debugOut("[Telegram] media handling failed: {s}\n", .{@errorName(err)});
+                    };
                 }
             }
         }
+    }
+
+    /// Extract (file_id, kind) from a raw update JSON body when it carries
+    /// media. Returns null for text-only updates.
+    fn extractMedia(allocator: std.mem.Allocator, raw: []const u8) !?struct { file_id: []u8, name: []u8 } {
+        const ParsedMedia = struct {
+            result: ?[]const struct {
+                message: ?struct {
+                    caption: []const u8 = "",
+                    document: ?struct { file_id: []const u8 = "", file_name: []const u8 = "" } = null,
+                    video: ?struct { file_id: []const u8 = "", file_name: []const u8 = "" } = null,
+                    photo: ?[]const struct { file_id: []const u8 = "" } = null,
+                } = null,
+            } = null,
+        };
+        const parsed = std.json.parseFromSlice(ParsedMedia, allocator, raw, .{ .ignore_unknown_fields = true }) catch return null;
+        defer parsed.deinit();
+        const msg = if (parsed.value.result) |r| (if (r.len > 0) r[0].message else null) else null;
+        const m = msg orelse return null;
+        if (m.document) |doc| {
+            if (doc.file_id.len == 0) return null;
+            const fname = if (doc.file_name.len > 0) doc.file_name else "document.bin";
+            return .{ .file_id = try allocator.dupe(u8, doc.file_id), .name = try allocator.dupe(u8, fname) };
+        }
+        if (m.video) |vid| {
+            if (vid.file_id.len == 0) return null;
+            const fname = if (vid.file_name.len > 0) vid.file_name else "video.mp4";
+            return .{ .file_id = try allocator.dupe(u8, vid.file_id), .name = try allocator.dupe(u8, fname) };
+        }
+        if (m.photo) |photos| {
+            if (photos.len == 0) return null;
+            const last = photos[photos.len - 1];
+            if (last.file_id.len == 0) return null;
+            return .{ .file_id = try allocator.dupe(u8, last.file_id), .name = try allocator.dupe(u8, "photo.jpg") };
+        }
+        return null;
+    }
+
+    /// Download a Telegram media file into workspace/uploads. Returns the
+    /// saved absolute path.
+    fn downloadMedia(self: *Runtime, file_id: []const u8, name: []const u8) ![]u8 {
+        const info_json = try self.client.getFile(file_id);
+        defer self.allocator.free(info_json);
+        const FileInfo = struct { result: struct { file_path: []const u8 = "" } };
+        const parsed = std.json.parseFromSlice(FileInfo, self.allocator, info_json, .{ .ignore_unknown_fields = true }) catch return error.InvalidResponse;
+        defer parsed.deinit();
+        const fp = parsed.value.result.file_path;
+        if (fp.len == 0) return error.InvalidResponse;
+
+        // Sanitize the stored filename: basename only, no traversal.
+        var safe_name = std.fs.path.basename(name);
+        if (safe_name.len == 0) safe_name = "download.bin";
+
+        const up_dir_path = "/root/pico-claw/workspace/uploads";
+        var cwd = std.Io.Dir.cwd();
+        std.Io.Dir.createDirAbsolute(self.io, up_dir_path, .default_dir) catch {};
+        const out_path = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ up_dir_path, safe_name });
+        errdefer self.allocator.free(out_path);
+
+        var out_file = try cwd.createFile(self.io, out_path, .{ .truncate = true });
+        var file_closed = false;
+        defer if (!file_closed) out_file.close(self.io);
+
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/file/bot{s}/{s}", .{ self.client.base_url, self.client.token, fp });
+        defer self.allocator.free(url);
+        var http: std.http.Client = .{ .allocator = self.allocator, .io = self.io };
+        defer http.deinit();
+
+        var mem_body = std.Io.Writer.Allocating.init(self.allocator);
+        defer mem_body.deinit();
+        const result = try http.fetch(.{
+            .location = .{ .url = url },
+            .response_writer = &mem_body.writer,
+        });
+        _ = result;
+        out_file.writeStreamingAll(self.io, mem_body.written()) catch |err| {
+            ui.debugOut("[Telegram] media write failed: {s}\n", .{@errorName(err)});
+            return error.DocumentReadFailed;
+        };
+        file_closed = true;
+        out_file.close(self.io);
+
+        return out_path;
+    }
+
+    fn messageHasMedia(message: *const MessageJson) bool {
+        if (message.document != null) return true;
+        if (message.video != null) return true;
+        if (message.photo) |photos| return photos.len > 0;
+        return false;
+    }
+
+    /// Download the media of `message` into workspace/uploads, then feed a
+    /// synthetic text message to the agent describing the saved file.
+    fn handleMediaUpdate(self: *Runtime, message: *const MessageJson) !void {
+        var file_id: []const u8 = "";
+        var name: []const u8 = "download.bin";
+        if (message.document) |doc| {
+            file_id = doc.file_id;
+            if (doc.file_name.len > 0) name = doc.file_name;
+        } else if (message.video) |vid| {
+            file_id = vid.file_id;
+            if (vid.file_name.len > 0) name = vid.file_name;
+        } else if (message.photo) |photos| {
+            if (photos.len == 0) return;
+            file_id = photos[photos.len - 1].file_id;
+            name = "photo.jpg";
+        }
+        if (file_id.len == 0) return;
+
+        const saved = self.downloadMedia(file_id, name) catch |err| {
+            self.client.sendMessage(message.chat.id orelse 0, "⚠️ Gagal mengunduh file (media handling gagal).") catch {};
+            return err;
+        };
+        defer self.allocator.free(saved);
+
+        var note = std.Io.Writer.Allocating.init(self.allocator);
+        defer note.deinit();
+        const nw = &note.writer;
+        nw.print("[Pengguna mengirim file. Tersimpan di: {s}", .{saved}) catch return error.OutOfMemory;
+        if (message.caption.len > 0) {
+            nw.print(" dengan catatan: {s}", .{message.caption}) catch return error.OutOfMemory;
+        }
+        nw.writeAll(". Baca/olah file ini jika diminta. Jika berupa .zip, ekstrak dulu ke folder kerjamu sebelum dibaca.]") catch return error.OutOfMemory;
+
+        const sender = message.from orelse return;
+        const user_id = try std.fmt.allocPrint(self.allocator, "{d}", .{sender.id});
+        defer self.allocator.free(user_id);
+        const chat_id = try std.fmt.allocPrint(self.allocator, "{d}", .{message.chat.id orelse 0});
+        defer self.allocator.free(chat_id);
+
+        const inbound = try InboundMessage.init(
+            self.allocator,
+            .telegram,
+            user_id,
+            chat_id,
+            note.written(),
+            if (message.message_id > 0) @intCast(message.message_id) else null,
+        );
+        self.handleUpdate(inbound);
     }
 
     /// Route one normalized message: allowlist, then the chat's conversation,

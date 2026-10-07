@@ -261,8 +261,8 @@ fn sameTool(left: ?[]const u8, right: ?[]const u8) bool {
 // Task record
 // ---------------------------------------------------------------------------
 
-pub const max_plan_steps = 16;
-pub const max_tool_calls = 8;
+pub const max_plan_steps = 32;
+pub const max_tool_calls = 48;
 
 pub const StepRecord = struct {
     step_id: usize,

@@ -119,7 +119,7 @@ body::after {
   max-width: 46vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @media (max-width: 900px) { .menu-btn { display: grid; width: 42px; height: 42px; font-size: 20px; } .topbar .sub { display: none; } }
-@media (max-width: 430px) { .pill { max-width: 100%; font-size: 11px; white-space: normal; overflow-wrap: anywhere; } }
+@media (max-width: 430px) { .pill { max-width: 40vw; font-size: 11px; } }
 
 .pages { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .page { display: none; padding: 16px; min-width: 0; }
@@ -241,7 +241,7 @@ html[data-theme="light"] .bubble pre { background: rgba(20,30,60,.05); }
   cursor: pointer; font: inherit; font-weight: 550; transition: background .15s, border-color .15s;
 }
 .btn:hover { background: var(--panel); }
-.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--text); box-shadow: 0 8px 22px rgba(90,110,255,.3); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff; box-shadow: 0 8px 22px rgba(90,110,255,.3); }
 .btn.danger { color: var(--err); border-color: rgba(244,112,103,.4); }
 .btn.sm { min-height: 34px; padding: 5px 11px; font-size: 12.5px; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
@@ -263,10 +263,9 @@ tbody tr:hover { background: var(--panel); }
 .sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; flex-wrap: wrap; }
 .sec-head h2 { margin: 0; font-size: 15px; }
 .sec-head .spacer { flex: 1; }
-.editor { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; background: var(--surface); border: 1.5px solid #D8D3C4; border-radius: 12px; padding: 12px; }
-.editor:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,245,.15); }
+.editor { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
 .stage { display: flex; gap: 10px; padding: 6px 0; align-items: flex-start; font-size: 13px; }
-.stage .mark { min-width: 20px; text-align: left; flex: none; font-weight: 700; }
+.stage .mark { width: 20px; text-align: center; flex: none; }
 .stage.done .mark { color: var(--ok); } .stage.fail .mark { color: var(--err); } .stage.run .mark { color: var(--warn); }
 
 /* ---------- forms (config / settings) ---------- */
@@ -319,11 +318,10 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
 .login-card h1 { margin: 0 0 4px; font-size: 18px; }
 .login-card .login-sub { color: var(--dim); font-size: 12.5px; margin: 0 0 16px; line-height: 1.55; }
 .login-card input {
-  width: 100%; min-height: var(--touch); border-radius: 12px; margin-bottom: 12px;
-  border: 1.5px solid #D8D3C4; background: var(--surface); color: var(--text); padding: 10px 12px; font: inherit;
-  transition: border-color .15s, box-shadow .15s;
+  width: 100%; min-height: var(--touch); border-radius: var(--radius-sm); margin-bottom: 12px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 10px 12px; font: inherit;
 }
-.login-card input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,245,.15); }
+.login-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .login-card .btn { width: 100%; }
 .login-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin-top: 10px; }
 .login-note { color: var(--faint); font-size: 11px; margin: 14px 0 0; line-height: 1.55; }
@@ -346,482 +344,289 @@ dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(3px); }
 .bottom-nav button.active { color: var(--accent); background: var(--panel); }
 @media (max-width: 900px) {
   .bottom-nav { display: flex; }
-  .main { padding-bottom: 0; }
-  
+  .main { padding-bottom: 64px; }
+  .chat-input-wrap { padding-bottom: 64px; }
 }
-
-/* ================================================================
-   PICO CLAW — CLEAN NEOBRUTALISM + LIGHT BLUE design system v2
-   ================================================================ */
-html, html[data-theme="light"], html[data-theme="dark"], :root {
-  --bg: #FFFDF5;
-  --surface: #FFFFFF;
-  --surface-soft: #FFF9E3;
-  --primary: #FFE45C;
-  --primary-hover: #FFD93D;
-  --accent: #3B6FF5;
-  --text: #171717;
-  --muted: #667085;
-  --border: #171717;
-  --border-soft: #E5E0CE;
-  --success: #25A875;
-  --danger: #E05252;
-  --warning: #D9A514;
-  --shadow: 3px 3px 0 rgba(23,23,23,.9);
-  --shadow-sm: 2px 2px 0 rgba(23,23,23,.85);
-  --radius: 16px;
-  --radius-sm: 12px;
-  --radius-xs: 9px;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --sans: "Samsung Sans", "SamsungOne", -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-  --touch: 44px;
-  --sidebar-w: 248px;
+/* ---------- theme-polish (modern & clean) ---------- */
+:root {
+  --bg0: #0a0d14; --bg1: #0f131d;
+  --accent: #6d9eff; --accent-2: #9b7bff;
+  --radius: 16px; --radius-sm: 11px;
+  --shadow: 0 12px 40px rgba(0,0,0,.38);
 }
-
-/* ---------- base ---------- */
-* { box-sizing: border-box; }
-html, body { max-width: 100%; overflow-x: hidden; height: 100%; }
-body {
-  margin: 0; color: var(--text); background: var(--bg);
-  font: 14px/1.55 var(--sans);
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none;
+html { background:
+  radial-gradient(1100px 55% 22% -12%, rgba(109,158,255,.10), 62%),
+  radial-gradient(820px 50% 88% 112%, rgba(155,123,255,.09), 58%),
+  var(--bg0);
 }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #C4D4E4; border-radius: 8px; }
-
-.app { display: flex; height: 100dvh; }
-.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-
-/* ---------- sidebar ---------- */
-.sidebar {
-  display: none; flex-direction: column; background: var(--surface);
-  border-right: 1px solid var(--border-soft);
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.card, .panel {
+  border-radius: var(--radius);
+  box-shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 28px rgba(0,0,0,.22);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.brand { display: flex; align-items: center; gap: 10px; }
+.card:hover { border-color: rgba(255,255,255,.16); }
+.btn { transition: filter .15s ease, transform .1s ease, box-shadow .15s ease; }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: 0; box-shadow: 0 6px 18px rgba(109,158,255,.28); }
+.btn.primary:hover { filter: brightness(1.08); }
+.nav-item { border-radius: var(--radius-sm); border: 1px solid transparent; }
+.topbar { backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); }
+#messages > * { animation: fadeUp .22s ease both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.18); background-clip: padding-box; }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.12) transparent; }
+input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(109,158,255,.18); }
+.pill { border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+/* theme-polish */
+/* drawer-zfix */
+
+/* ================= NEOBRUTALISM THEME ================= */
+:root {
+  --bg0: #f5f1e8; --bg1: #fdfbf4;
+  --panel: #ffffff; --panel-2: #ffffff;
+  --border: #111111; --border-soft: #111111;
+  --text: #111111; --dim: #444444; --faint: #777777;
+  --accent: #2f6bff; --accent-2: #ff5c8a;
+  --ok: #00c48c; --warn: #ffb020; --err: #ff4757;
+  --user-bubble: #2f6bff;
+  --glass: none;
+  --radius: 0px; --radius-sm: 0px; --radius-xs: 0px;
+  --shadow: 4px 4px 0 #111111;
+  --shadow-lg: 6px 6px 0 #111111;
+  --sans: "Samsung Sans", "SamsungOne", -apple-system, "Roboto", "Segoe UI", "Noto Sans", sans-serif;
+  --sidebar-w: 240px;
+  --bw: 2px; /* border width */
+}
+html[data-theme="light"] { --bg0:#f5f1e8; --bg1:#fdfbf4; }
+html[data-theme="dark"], html {
+  background: var(--bg0) !important;
+}
+body { background: var(--bg0) !important; }
+
+/* SEMUA elemen: border hitam tegas, shadow offset, tanpa gradient */
+.app, .sidebar, .main, .topbar, .card, .panel, .btn, .icon-btn, .pill,
+input, select, textarea, .bubble, .conv-rail, .table-wrap, .skeleton,
+.login-card, .editor, .chat-input-box, #messages > * {
+  border: var(--bw) solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--shadow) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  background: var(--panel) !important;
+  background-image: none !important;
+}
+.sidebar { background: var(--bg1) !important; box-shadow: none !important; border-right: var(--bw) solid var(--border) !important; }
+.topbar { background: var(--bg1) !important; box-shadow: 0 var(--bw) 0 var(--border) !important; }
+.chat-input-box { background: var(--panel) !important; }
+.bubble.user { background: var(--accent) !important; color: #fff !important; box-shadow: var(--shadow) !important; }
+.bubble.agent { background: var(--panel) !important; }
+
+/* Tombol: neobrutalism classic */
+.btn {
+  font-weight: 700; text-transform: none; letter-spacing: .1px;
+  transition: transform .08s ease, box-shadow .08s ease !important;
+}
+.btn:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--border) !important; }
+.btn:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--border) !important; }
+.btn.primary { background: var(--accent) !important; color: #fff !important; }
+.btn.danger { background: var(--err) !important; color: #fff !important; }
+.btn.sm { box-shadow: 3px 3px 0 var(--border) !important; }
+.icon-btn { font-weight: 700; }
+.icon-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--border) !important; }
+
+/* Nav items: blok tebal, aktif = kuning + shadow */
+.nav-item { font-weight: 600; border: var(--bw) solid transparent !important; box-shadow: none !important; }
+.nav-item:hover { background: #fff7d6 !important; border-color: var(--border) !important; color: var(--text) !important; }
+.nav-item.active { background: #ffe14d !important; color: #111 !important; box-shadow: var(--shadow) !important; }
+
+/* Logo & pill */
 .logo, .login-logo {
-  width: 36px; height: 36px; border-radius: 10px;
-  display: grid; place-items: center; flex: none;
-  background: var(--primary); color: var(--text); font-weight: 800; font-size: 14px;
-  border: 1.5px solid var(--border); box-shadow: 0 2px 6px rgba(217,164,6,.3);
+  border: var(--bw) solid var(--border) !important;
+  background: #ffe14d !important; color: #111 !important;
+  box-shadow: var(--shadow) !important; border-radius: 0 !important;
 }
-.brand b { font-size: 14.5px; letter-spacing: .2px; display: block; }
-.brand small { display: block; color: var(--muted); font-size: 10.5px; }
-.nav-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-  color: var(--muted); margin: 14px 4px 4px;
-}
-.nav-label:first-child { margin-top: 0; }
-.nav-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px;
-  border: 0; background: transparent; color: var(--text);
-  padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer;
-  font: inherit; font-weight: 500; text-align: left;
-  transition: background .12s;
-  -webkit-tap-highlight-color: transparent;
-}
-.nav-item:hover { background: var(--surface-soft); }
-.nav-item.active { background: var(--primary); font-weight: 700; outline: none; }
-.nav-item .ico { text-align: center; width: 20px; flex: none; }
-.sidebar .spacer { flex: 1; }
-.side-foot { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 7px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; flex: none; }
-.pill.ok .dot { background: var(--success); }
-.pill.warn .dot { background: var(--warning); }
-.pill.err .dot { background: var(--danger); }
+.pill { box-shadow: 2px 2px 0 var(--border) !important; font-weight: 600; background: #fff !important; }
 
-@media (min-width: 901px) {
-  .sidebar { display: flex; width: var(--sidebar-w); flex: none; padding: 18px 14px; gap: 6px; }
+/* Heading tegas */
+h1, h2, h3 { font-weight: 800 !important; letter-spacing: .2px; }
+.page h2 { border-bottom: var(--bw) solid var(--border); display: inline-block; padding-bottom: 2px; }
+
+/* Hapus gradient lama di body/topbar */
+.topbar, .sidebar { background-image: none !important; }
+html { background-image:
+  radial-gradient(circle at 15% 20%, rgba(47,107,255,.08) 0 22%, transparent 23%),
+  radial-gradient(circle at 85% 75%, rgba(255,92,138,.08) 0 18%, transparent 19%),
+  var(--bg0) !important; }
+
+/* Skeleton: garis hitam polos */
+.skeleton { background: #e8e4d8 !important; border: var(--bw) solid var(--border) !important; border-radius: 0 !important; }
+
+/* Table */
+th { background: #ffe14d !important; border: var(--bw) solid var(--border) !important; }
+td { border: 1px solid var(--border) !important; background: #fff !important; }
+
+/* ================= MOBILE FRIENDLY (One UI style) ================= */
+@media (max-width: 900px) {
+  :root { --touch: 48px; }
+  .topbar { padding: 10px 12px; position: sticky; top: 0; z-index: 40; }
+  .topbar h1 { font-size: 17px; }
+  .page { padding: 12px; }
+  .card { margin-bottom: 12px; }
+  .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr !important; }
+  /* chat */
+  .conv-rail { position: fixed; z-index: 45; }
+  .chat-toolbar { flex-wrap: wrap; gap: 6px; }
+  .chat-toolbar .btn.sm { padding: 6px 10px; font-size: 12px; }
+  #chat-input { font-size: 16px !important; } /* cegah zoom iOS */
+  table { font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
 }
+@media (max-width: 430px) {
+  .topbar h1 { font-size: 15.5px; }
+  .pill { display: none; } /* hemat ruang di HP kecil */
+  .btn { min-height: 42px; }
+}
+/* laptop friendly: max width konten */
+@media (min-width: 1400px) { .page { max-width: 1280px; margin: 0 auto; } }
+
+/* hapus bottom-nav lama jika ada sisa */
+.bottom-nav { display: none !important; }
+/* theme-var-fix: paksa variabel neobrutalism menang di semua tema */
+html, html[data-theme="light"], html[data-theme="dark"] {
+  --bg0: #f5f1e8; --bg1: #fdfbf4;
+  --panel: #ffffff; --panel-2: #ffffff;
+  --border: #111111; --border-soft: #111111;
+  --text: #111111; --dim: #444444; --faint: #777777;
+  --accent: #2f6bff; --accent-2: #ff5c8a;
+  --radius: 0px; --radius-sm: 0px; --radius-xs: 0px;
+  --shadow: 4px 4px 0 #111111;
+  --glass: none;
+  --user-bubble: #2f6bff;
+}
+html[data-theme="dark"] { --bg0: #16181d; --bg1: #1d2026; --panel: #23262d; --panel-2: #2a2e36; --text: #f2f2f2; --dim: #b8bcc4; --faint: #8a8f99; }
+
+/* neobrutalism */
+
+
+/* ===== mobile-refine v1: refined neobrutalism + true mobile chat ===== */
+
+/* --- 1. Refine visual system: softer borders/shadows, consistent radii --- */
+html, html[data-theme="light"], html[data-theme="dark"] {
+  --bw: 1px;
+  --radius: 14px; --radius-sm: 10px; --radius-xs: 8px;
+  --shadow: 0 4px 14px rgba(17,24,39,.10);
+  --shadow-lg: 0 10px 30px rgba(17,24,39,.16);
+  --touch: 44px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+}
+html[data-theme="dark"] {
+  --shadow: 0 4px 14px rgba(0,0,0,.35);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.45);
+}
+
+/* soften the global hard border/shadow blanket */
+.app, .sidebar, .main, .topbar, .card, .panel, .btn, .icon-btn, .pill,
+input, select, textarea, .bubble, .conv-rail, .table-wrap, .skeleton,
+.login-card, .editor, .chat-input-box, #messages > * {
+  border: 1px solid var(--border-soft) !important;
+  box-shadow: none !important;
+}
+.card, .panel, .login-card { box-shadow: var(--shadow) !important; }
+.topbar { box-shadow: 0 1px 0 var(--border-soft) !important; }
+.sidebar { border-right: 1px solid var(--border-soft) !important; }
+th { border: 0 !important; border-bottom: 1px solid var(--border) !important; }
+td { border: 0 !important; border-bottom: 1px solid var(--border-soft) !important; }
+.bubble.user { box-shadow: 0 4px 12px rgba(47,107,255,.25) !important; }
+
+.btn {
+  border-radius: var(--radius-sm) !important; font-weight: 600;
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease !important;
+}
+.btn.primary { box-shadow: 0 3px 10px rgba(47,107,255,.30) !important; }
+.btn:hover { transform: none !important; }
+.btn:active { transform: scale(.97) !important; box-shadow: none !important; }
+.icon-btn, .pill { border-radius: var(--radius-sm) !important; }
+.logo, .login-logo { border-radius: var(--radius-sm) !important; box-shadow: 0 3px 10px rgba(255,193,7,.35) !important; }
+.nav-item { border-radius: var(--radius-sm) !important; box-shadow: none !important; }
+.nav-item.active { box-shadow: none !important; background: #fff3bf !important; border-color: var(--border) !important; }
+html[data-theme="dark"] .nav-item.active { background: rgba(255,225,77,.14) !important; color: #ffe14d !important; }
+
+/* --- 2. App frame: true viewport layout (topbar / content / composer) --- */
+html, body { height: 100%; }
+body { overscroll-behavior-y: none; }
+.app { height: 100dvh; }
+.main { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.pages { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.page { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.page-chat.active { display: flex; overflow: hidden; }
+
+/* --- 3. Sidebar drawer: fixed header/footer, own scroll, scroll lock --- */
 @media (max-width: 900px) {
   .sidebar {
-    position: fixed; top: 0; bottom: 0; left: 0; width: min(300px, 82vw);
-    transform: translateX(-105%); transition: transform .25s cubic-bezier(.2,.8,.2,1);
-    z-index: 60; display: flex; flex-direction: column;
-    padding: 0; box-shadow: none;
+    width: min(300px, 82vw) !important;
+    display: flex; flex-direction: column;
+    padding: 0 !important;
   }
-  .sidebar.open { transform: none; box-shadow: var(--shadow); }
   .sidebar .brand {
-    position: sticky; top: 0; z-index: 2; flex: none;
-    padding: 16px 16px 12px; background: var(--surface);
+    position: sticky; top: 0; z-index: 2;
+    padding: 16px 16px 12px;
+    background: var(--bg1);
     border-bottom: 1px solid var(--border-soft);
+    flex: none;
   }
   .sidebar nav {
     flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 12px 16px;
+    display: flex; flex-direction: column; gap: 2px;
   }
+  .sidebar .nav-item { min-height: 46px; padding: 10px 12px; font-size: 14px; }
   .sidebar .spacer { flex: none; }
   .sidebar .side-foot {
     position: sticky; bottom: 0; flex: none;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-    background: var(--surface); border-top: 1px solid var(--border-soft);
+    background: var(--bg1); border-top: 1px solid var(--border-soft);
+    font-size: 11.5px;
   }
-  .backdrop {
-    display: block; position: fixed; inset: 0;
-    background: rgba(23,32,51,.4); backdrop-filter: blur(2px);
-    z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s;
-  }
-  .backdrop.show { opacity: 1; pointer-events: auto; }
+  .backdrop { background: rgba(4,6,12,.6); backdrop-filter: blur(2px); z-index: 55; }
+  .sidebar { z-index: 60; }
   body.drawer-open { overflow: hidden; }
 }
-@media (min-width: 901px) { .backdrop { display: none; } }
-
-/* ---------- topbar ---------- */
-.topbar {
-  display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex: none; min-width: 0;
-  border-bottom: 1px solid var(--border-soft); background: var(--bg);
-}
-.topbar h1 { margin: 0; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topbar .sub { color: var(--muted); font-size: 12px; }
-.menu-btn { display: none; }
-.icon-btn {
-  width: var(--touch); height: var(--touch); display: grid; place-items: center; flex: none;
-  border: 2px solid var(--border); background: var(--surface); color: var(--text);
-  border-radius: var(--radius-sm); cursor: pointer; font-size: 16px;
-  transition: background .12s, transform .08s;
-}
-.icon-btn:hover { background: var(--surface-soft); }
-.icon-btn:active { transform: scale(.94); }
-.pill {
-  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px;
-  border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
-  font-size: 12px; color: var(--text); font-weight: 600;
-  max-width: 46vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-@media (max-width: 900px) {
-  .menu-btn { display: grid; width: 40px; height: 40px; font-size: 18px; }
-  .topbar { padding: 8px 12px; }
-  .topbar .sub { display: none; }
-}
-@media (max-width: 640px) {
-  #theme-btn, #signout-btn { width: 40px; height: 40px; }
-  .pill { max-width: 32vw; font-size: 11px; padding: 4px 9px; }
-  .topbar h1 { font-size: 15px; }
-}
-
-/* ---------- pages ---------- */
-.pages { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.page { display: none; padding: 16px; min-width: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.page.active { display: block; animation: fadeUp .22s ease; }
-.page-chat.active { display: flex; flex-direction: column; overflow: hidden; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-@media (min-width: 1024px) {
-  .page { max-width: 1180px; margin: 0 auto; width: 100%; }
-  .page-chat { max-width: none; }
-}
-
-/* ---------- chat ---------- */
-.chat-shell { display: flex; flex: 1; min-height: 0; position: relative; }
-.conv-rail {
-  display: none; flex-direction: column; gap: 8px; width: 240px; flex: none;
-  border-right: 1px solid var(--border-soft); padding: 14px 12px; background: var(--surface);
-}
-.conv-rail h2 { margin: 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-.conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
-.conv-item {
-  display: flex; align-items: center; gap: 8px; min-height: 42px;
-  border: 0; background: transparent; color: var(--muted);
-  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; width: 100%; text-align: left;
-}
-.conv-item:hover { color: var(--text); background: var(--surface-soft); }
-.conv-item.active { color: var(--text); background: var(--primary); font-weight: 600; }
-.conv-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; min-width: 0; }
-@media (max-width: 900px) {
-  .conv-rail {
-    position: absolute; z-index: 15; top: 0; bottom: 0; left: 0; width: min(300px, 82vw);
-    transform: translateX(-105%); transition: transform .22s ease;
-    overflow-y: auto; box-shadow: var(--shadow);
-  }
-  .conv-rail.open { transform: none; }
-}
-@media (min-width: 901px) { .conv-rail { display: flex; } }
-#conv-toggle { display: none; }
-@media (max-width: 900px) { #conv-toggle { display: inline-flex; } }
-
-.chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.chat-toolbar {
-  display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap;
-  border-bottom: 1px solid var(--border-soft); background: var(--surface); flex: none;
-}
-.chat-toolbar label { color: var(--muted); font-size: 12px; }
-.chat-toolbar select, .field select, .field input, .field textarea {
-  font: inherit; color: var(--text); background: var(--surface);
-  border: 1.5px solid #D8D3C4; border-radius: 12px; padding: 8px 10px;
-  min-width: 0; transition: border-color .15s, box-shadow .15s;
-}
-.chat-toolbar select { max-width: 100%; flex: 1 1 150px; }
-.chat-toolbar .spacer { flex: 1 0 0; }
-
-#messages {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: 16px; display: flex; flex-direction: column; gap: 10px;
-}
-.row { display: flex; }
-.row.user { justify-content: flex-end; }
-.bubble {
-  max-width: min(86%, 46rem); padding: 9px 14px; border-radius: 16px;
-  overflow-wrap: anywhere; word-break: break-word; animation: fadeUp .2s ease;
-}
-.row.assistant .bubble { background: var(--surface); border: 1px solid var(--border-soft); }
-.row.user .bubble { background: var(--primary); border: 2px solid var(--border); border-bottom-right-radius: 6px; box-shadow: var(--shadow-sm); }
-.row.assistant .bubble { border-bottom-left-radius: 6px; }
-.row.error .bubble { background: #FDECEC; border: 1px solid var(--danger); }
-.row.system .bubble { background: transparent; color: var(--muted); font-size: 12px; }
-.bubble p { margin: .3em 0; }
-.bubble pre {
-  background: #FBF7E8; border: 1px solid var(--border-soft); border-radius: var(--radius-xs);
-  padding: 10px 12px; overflow-x: auto; position: relative; margin: .45em 0; max-width: 100%;
-}
-.bubble pre code { font-family: var(--mono); font-size: 12px; background: none; padding: 0; white-space: pre; }
-.bubble code { font-family: var(--mono); font-size: 12px; background: var(--surface-soft); padding: .1em .35em; border-radius: 5px; overflow-wrap: anywhere; }
-.bubble a { color: #2456C9; }
-.bubble ul { margin: .35em 0; padding-left: 1.25em; }
-.copy-btn {
-  position: absolute; top: 6px; right: 6px; font-size: 10.5px; padding: 2px 8px;
-  border-radius: 6px; border: 1px solid var(--border-soft); background: var(--surface);
-  color: var(--muted); cursor: pointer; opacity: 0; transition: opacity .15s;
-}
-.bubble pre:hover .copy-btn, .bubble pre:focus-within .copy-btn, .copy-btn:focus { opacity: 1; }
-@media (hover: none) { .copy-btn { opacity: .7; } }
-.tool-badge {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
-  color: #8a6d00; background: #FFF4C2; border: 1px solid #E8D48A;
-  border-radius: 6px; padding: 1px 8px; overflow-wrap: anywhere; font-weight: 600;
-}
-.typing { display: inline-flex; gap: 4px; align-items: center; }
-.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.1s infinite; }
-.typing span:nth-child(2) { animation-delay: .18s; }
-.typing span:nth-child(3) { animation-delay: .36s; }
-@keyframes blink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
-
-.chat-input-wrap {
-  flex: none; padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  background: var(--bg); border-top: 1px solid var(--border-soft);
-}
+/* --- 4. Chat viewport layout --- */
+.chat-shell { flex: 1 1 auto; min-height: 0; }
+.chat-col { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#messages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
+.chat-input-wrap { flex: none; padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--bg1); border-top: 1px solid var(--border-soft); }
 .chat-input-box {
-  display: flex; align-items: flex-end; gap: 8px;
-  border: 1.5px solid #D8D3C4; border-radius: 22px;
-  background: var(--surface); padding: 7px 7px 7px 16px; box-shadow: 0 2px 10px rgba(23,23,23,.06);
-  transition: border-color .15s, box-shadow .15s;
+  align-items: flex-end; gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 22px !important;
+  background: var(--panel-2) !important;
+  box-shadow: var(--shadow) !important;
 }
-.chat-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,245,.12);
-}
-#chat-input {
-  flex: 1; border: none; outline: none; background: none; color: var(--text);
-  resize: none; max-height: 140px; min-height: 24px; font: inherit; padding: 7px 0;
-  min-width: 0;
-}
-#chat-input::placeholder { color: var(--muted); }
-.hint { color: var(--muted); font-size: 11px; margin-top: 6px; text-align: center; }
-.hint kbd { font-family: var(--mono); background: var(--surface-soft); border: 1px solid var(--border-soft); border-radius: 5px; padding: 0 5px; font-size: 10px; }
+#chat-input { max-height: 140px; min-height: 22px; line-height: 1.45; padding: 6px 0; font-size: 16px !important; }
+#send-btn { min-width: 44px; min-height: 44px; border-radius: 50% !important; padding: 0 14px; flex: none; font-weight: 700; }
 @media (max-width: 640px) { .hint { display: none; } }
 
-/* ---------- empty state ---------- */
-#messages .state {
-  margin: auto; max-width: 340px; padding: 24px 16px;
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
-}
-#messages .state .big { font-size: 40px; margin: 0 0 2px; }
-#messages .state h2 { margin: 0; font-size: 17px; }
-#messages .state .sub, #messages .state { font-size: 13.5px; color: var(--muted); }
-.state { text-align: center; color: var(--muted); padding: 32px 16px; }
-.state .big { font-size: 34px; margin-bottom: 8px; }
-.state.err { color: var(--danger); }
-.state.warn { color: var(--warning); }
-.state .sub { font-size: 12.5px; }
-.skeleton { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-soft), #F2ECCE, var(--surface-soft)); background-size: 200% 100%; animation: shimmer 1.2s infinite; margin: 8px 0; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-/* ---------- buttons ---------- */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: var(--touch); padding: 8px 16px; cursor: pointer;
-  border: 1.5px solid #D8D3C4; border-radius: 10px;
-  background: var(--surface); color: var(--text); font: inherit; font-weight: 650; font-size: 13.5px;
-  transition: transform .08s, background .12s, box-shadow .12s;
-  text-decoration: none;
-}
-.btn:hover { background: var(--surface-soft); }
-.btn:active { transform: scale(.97); }
-.btn.primary { background: var(--primary); box-shadow: 0 2px 8px rgba(217,164,6,.25); }
-.btn.primary:hover { background: var(--primary-hover); }
-.btn.accent { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); border-color: var(--border); }
-.btn.ghost { border-color: var(--border-soft); box-shadow: none; font-weight: 550; }
-.btn.danger { background: #FDECEC; color: var(--danger); border-color: var(--danger); }
-.btn.sm { min-height: 36px; padding: 6px 12px; font-size: 12.5px; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-button { font-family: inherit; }
-
-/* ---------- badges / pills / chips ---------- */
-.badge {
-  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px;
-  border: 1px solid var(--border-soft); background: var(--surface-soft);
-  font-size: 11px; font-weight: 600; color: var(--muted); max-width: 100%;
-  overflow-wrap: anywhere;
-}
-.badge.ok { background: #E2F5EC; color: var(--success); border-color: #B3E2CD; }
-.badge.err { background: #FCE9E9; color: var(--danger); border-color: #F2BFBF; }
-.badge.warn { background: #FFF4C2; color: #8a6d00; border-color: #E8D48A; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
-  border-radius: 999px; border: 1px solid var(--border-soft); background: var(--surface);
-  font-size: 12px; margin: 2px; max-width: 100%; overflow-wrap: anywhere;
-}
-.chip.active { background: var(--primary); border-color: var(--border); font-weight: 650; }
-
-/* ---------- cards / sections ---------- */
-.grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
-@media (min-width: 768px) { .grid.cols-2 { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1024px) { .grid.cols-3 { grid-template-columns: repeat(3, 1fr); } }
-.card {
-  border: 1.5px solid var(--border-soft); border-radius: var(--radius);
-  background: var(--surface); padding: 16px; min-width: 0;
-  box-shadow: 0 1px 4px rgba(23,23,23,.05);
-}
-.card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 750; letter-spacing: .2px; }
-.sec-head { margin: 20px 0 10px; }
-.sec-head h2 { margin: 0; font-size: 18px; font-weight: 800; }
-.sec-head .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
-.fade { animation: fadeUp .25s ease; }
-
-.kv { display: flex; gap: 10px; padding: 5px 0; align-items: baseline; min-width: 0; flex-wrap: wrap; }
-.kv .k { color: var(--muted); flex: none; min-width: 110px; font-size: 12px; }
-.kv .v { min-width: 0; overflow-wrap: anywhere; word-break: break-word; flex: 1; }
-.metric { font-size: 25px; font-weight: 750; }
-.metric small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
-.metric + .metric { margin-top: 8px; }
-.trend-ok { color: var(--success); }
-.trend-err { color: var(--danger); }
-.mono { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
-
-/* ---------- tables → responsive ---------- */
-.table-wrap {
-  border: 2px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); overflow: hidden;
-  max-width: 100%; box-shadow: var(--shadow-sm);
-}
-.table-wrap > table { margin: 0; border: 0; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); }
-th {
-  text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .6px; color: var(--muted);
-  background: var(--primary); border-bottom: 2px solid var(--border);
-  white-space: nowrap; color: var(--text);
-}
-td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
-tr:last-child td { border-bottom: 0; }
+/* --- 5. Compact chat header: kebab action menu --- */
 @media (max-width: 640px) {
-  /* stacked responsive cards */
-  .table-wrap { border: 0; background: transparent; overflow: visible; }
-  .table-wrap > table, table { display: block; background: transparent; }
-  .table-wrap thead { display: none; }
-  .table-wrap tbody { display: block; }
-  .table-wrap tr {
-    display: block; background: var(--surface);
-    border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
-    padding: 10px 12px; margin-bottom: 10px;
-  }
-  .table-wrap td { display: flex; gap: 8px; border-bottom: 0; padding: 4px 0; }
-  .table-wrap td::before {
-    content: attr(data-label);
-    flex: none; min-width: 96px; max-width: 40%;
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
-    color: var(--muted); padding-top: 2px;
-  }
-  /* tables rendered without .table-wrap: isolate scroll */
-  .page > table, .card > table {
-    display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
-  }
-  .page > table > table, .card > table table { display: table; min-width: 460px; }
+  .chat-toolbar { gap: 8px; padding: 8px 12px; flex-wrap: nowrap; }
+  .chat-toolbar label[for="model-select"] { display: none; }
+  #model-select { flex: 1 1 auto; min-width: 0; max-width: 100%; font-size: 13px; padding: 8px 10px; }
+  #model-pill { display: none; }
+  #conv-toggle { padding: 8px 10px; font-size: 12.5px; flex: none; }
+  .chat-toolbar .btn.sm { display: none; }
+  .kebab-btn { display: inline-flex !important; }
 }
-
-/* ---------- forms ---------- */
-.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; min-width: 0; }
-.field label { font-size: 12px; font-weight: 650; color: var(--text); }
-.field .sub { color: var(--muted); font-size: 11.5px; }
-.field input, .field select, .field textarea {
-  width: 100%; font: inherit; color: var(--text); background: var(--surface);
-  border: 1.5px solid #D8D3C4; border-radius: 12px; padding: 10px 12px;
-  min-width: 0; transition: border-color .15s, box-shadow .15s;
-}
-.field input:hover, .field select:hover, .field textarea:hover { border-color: #B9B3A0; }
-.field textarea { resize: vertical; min-height: 80px; }
-.field input:focus, .field select:focus, .field textarea:focus, .chat-toolbar select:focus {
-  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,245,.15);
-}
-.form-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
-@media (min-width: 768px) { .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); } }
-.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
-.row-actions > * { min-width: 0; }
-.row-actions input, .row-actions select { flex: 1 1 140px; min-width: 0; }
-.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-.editor {
-  width: 100%; font-family: var(--mono); font-size: 12.5px; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  padding: 12px; min-height: 260px; resize: vertical;
-}
-.editor:focus { outline: 2px solid var(--primary-hover); border-color: var(--primary-hover); }
-
-/* ---------- stages / run detail ---------- */
-.stage {
-  display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px;
-  border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
-  background: var(--surface); margin-bottom: 8px; min-width: 0;
-}
-.stage .mark { flex: none; font-weight: 800; }
-.stage.done .mark { color: var(--success); }
-.stage.fail .mark { color: var(--danger); }
-.stage .sub { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.stage span:last-child { min-width: 0; overflow-wrap: anywhere; }
-
-/* ---------- sandbox / definition cards ---------- */
-.perm-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-.perm-card {
-  border: 1.5px solid var(--border-soft); border-radius: var(--radius-sm);
-  background: var(--surface); padding: 10px 12px; min-width: 0;
-}
-.perm-card .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); display: block; }
-.perm-card .v { font-size: 14px; font-weight: 650; margin-top: 3px; display: block; overflow-wrap: anywhere; }
-.perm-card .v.ok { color: var(--success); }
-.perm-card .v.off { color: var(--muted); }
-.cmd-block {
-  font-family: var(--mono); font-size: 12px; background: #FFFBEA;
-  border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
-  padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere;
-  max-height: 200px; overflow-y: auto;
-}
-
-/* ---------- login ---------- */
-.login-overlay {
-  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  background: var(--bg); padding: 16px;
-}
-.login-card {
-  width: 100%; max-width: 360px; background: var(--surface);
-  border: 2px solid var(--border); border-radius: var(--radius);
-  box-shadow: 5px 5px 0 var(--border); padding: 24px;
-}
-.login-logo { margin-bottom: 12px; }
-.login-card h1 { margin: 0 0 4px; font-size: 18px; }
-.login-sub { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; }
-.login-card input {
-  width: 100%; font: inherit; color: var(--text); background: var(--surface);
-  border: 1.5px solid var(--border); border-radius: var(--radius-xs); padding: 10px 12px;
-}
-.login-card input:focus { outline: 2px solid var(--primary-hover); border-color: var(--primary-hover); }
-.login-card .btn { width: 100%; margin-top: 12px; }
-.login-error { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 10px; }
-.login-note { color: var(--muted); font-size: 11px; margin: 14px 0 0; line-height: 1.55; overflow-wrap: anywhere; }
-
-/* ---------- kebab menu (chat actions, mobile) ---------- */
 .kebab-btn { display: none; }
 .kebab-menu {
   position: absolute; right: 8px; top: 100%; z-index: 70;
   min-width: 168px; padding: 6px;
-  background: var(--surface); border: 2px solid var(--border);
-  border-radius: var(--radius-sm); box-shadow: 4px 4px 0 var(--border);
+  background: var(--panel) !important; border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-lg) !important;
   display: none; flex-direction: column; gap: 2px;
 }
 .kebab-menu.open { display: flex; }
@@ -831,529 +636,51 @@ tr:last-child td { border-bottom: 0; }
   color: var(--text); font: inherit; font-size: 14px; text-align: left;
   border-radius: var(--radius-xs); cursor: pointer;
 }
-.kebab-menu button:hover { background: var(--surface-soft); }
-.kebab-menu button.danger { color: var(--danger); }
+.kebab-menu button:hover { background: var(--panel-2); }
+.kebab-menu button.danger { color: var(--err); }
+
+/* --- 6. Empty state --- */
+#messages .state {
+  margin: auto; max-width: 340px; padding: 24px 16px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+#messages .state .big { font-size: 40px; margin: 0 0 2px; }
+#messages .state h2 { margin: 0; font-size: 17px; }
+#messages .state .sub, #messages .state { font-size: 13.5px; color: var(--dim); }
+
+/* --- 7. Topbar compact --- */
 @media (max-width: 640px) {
-  .chat-toolbar { flex-wrap: nowrap; padding: 8px 12px; }
-  .chat-toolbar label[for="model-select"] { display: none; }
-  #model-pill { display: none; }
-  .chat-toolbar .btn.sm { display: none; }
-  .kebab-btn { display: inline-flex !important; }
-  .chat-toolbar { position: relative; }
+  .topbar { padding: 8px 10px; gap: 8px; }
+  .topbar h1 { font-size: 15.5px; }
+  .menu-btn { width: 40px; height: 40px; font-size: 18px; }
+  #theme-btn, #signout-btn { width: 40px; height: 40px; }
+  .pill { max-width: 34vw; font-size: 11px; padding: 4px 9px; }
+  .grid { gap: 12px; }
+  .page { padding: 12px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 480px; }
+  .kv .k { min-width: 92px; font-size: 11.5px; }
+  dialog, .modal, [role="dialog"] { max-width: calc(100vw - 24px) !important; max-height: 85dvh; overflow: auto; }
 }
-
-/* ---------- dialogs ---------- */
-dialog, .modal, [role="dialog"] {
-  max-width: calc(100vw - 24px); max-height: 85dvh; overflow: auto;
-  border: 1.5px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); color: var(--text);
+/* conv-rail drawer width */
+@media (max-width: 900px) {
+  .conv-rail { width: min(300px, 82vw) !important; }
 }
-.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 14px; }
-
-/* ---------- toast ---------- */
-.toast {
-  position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%;
-  transform: translateX(-50%); z-index: 200;
-  background: var(--text); color: #fff; font-size: 13px;
-  padding: 10px 16px; border-radius: var(--radius-sm);
-  box-shadow: var(--shadow); max-width: calc(100vw - 32px);
-  overflow-wrap: anywhere;
+/* laptop friendly */
+@media (min-width: 1024px) {
+  .page { max-width: 1280px; margin: 0 auto; width: 100%; }
+  .page-chat { max-width: none; }
 }
-.toast.err { background: var(--danger); }
-
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
-/* ===== end design system v2 ===== */
+/* ===== end mobile-refine v1 ===== */
 
 
 
-
-/* ds2-fix1: sandbox permission rows — hindari tabrakan label/value */
-.row-actions .stage { flex: 1 1 100%; gap: 12px; align-items: baseline; }
-.row-actions .stage .mark { min-width: 72px; flex: none; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
-.row-actions .stage span:last-child { font-weight: 650; }
-@media (min-width: 641px) { .row-actions .stage { flex: 1 1 46%; } }
-/* ds2-fix1b: topbar tidak pernah overflow */
-.topbar { overflow: hidden; }
-.topbar .pill { flex: 0 1 auto; }
-
-
-/* ds2-fix2: composer nempel dasar viewport */
-.page-chat { padding-bottom: 0 !important; }
-.page-chat.active { padding-bottom: 0 !important; }
-
-/* ds3: mobile stacked table cells — value block, no mid-word breaking */
-@media (max-width: 640px) {
-  .table-wrap td { display: block; padding: 3px 0; }
-  .table-wrap td::before {
-    display: block; margin-bottom: 2px; min-width: 0; max-width: none;
-  }
-  .table-wrap td > * { display: inline-block; }
-  .table-wrap td { overflow-wrap: normal; word-break: normal; }
-  .table-wrap td .mono, .table-wrap td code { overflow-wrap: anywhere; word-break: break-all; }
-  .table-wrap tr { padding: 14px; border: 2px solid var(--border); box-shadow: 3px 3px 0 var(--border); border-radius: var(--radius-sm); margin-bottom: 14px; }
-  .table-wrap tr:last-child { margin-bottom: 0; }
-  .table-wrap td .badge, .table-wrap td .chip { margin: 2px 4px 2px 0; }
-}
-
-/* ds4: doctor/stage rows — label penuh, detail wrap, tidak nested */
-.stage { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
-.stage:last-child { border-bottom: 0; }
-.stage .mark { font-size: 13px; }
-.stage > span:last-child { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
-.stage > span:last-child .pill { flex: none; }
-.stage > span:last-child { overflow-wrap: anywhere; }
-@media (min-width: 768px) {
-  .stage { flex-direction: row; align-items: baseline; gap: 12px; }
-  .stage .mark { min-width: 130px; }
-}
-/* ds4: kapitalisasi — badge/pill/nav title case */
-.pill, .badge, .chip, .nav-item, .btn, .side-foot { text-transform: none; }
-
-/* ds4b: huruf awal kata kapital pada label/status */
-.pill, .badge, .chip, .nav-item, .kv .k, .stage .mark { text-transform: capitalize; }
-
-/* ds5: doctor rows — pill di kanan label, detail di bawah, tanpa nested card look */
-.stage { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 12px 2px; }
-.stage .mark { grid-column: 1; align-self: center; font-size: 13.5px; }
-.stage > span:last-child { grid-column: 2; justify-self: end; display: inline-flex; align-items: center; gap: 6px; }
-.stage .pill { flex: none; }
-/* detail text wrap di bawah label, bukan di sebelah pill: pindahkan detail ke baris baru via struktur: buat pill absolute? 
-   Markup: <span class=mark>NAME</span><span>PILL detail</span> — pecah: pakai ::first-line tak bisa. Solusi: pill float kanan. */
-.stage > span:last-child { display: block; grid-column: 1 / -1; text-align: left; }
-.stage > span:last-child .pill { float: right; margin-left: 10px; }
-.stage > span:last-child { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; min-height: 28px; }
-.stage::after { content: ""; display: block; clear: both; }
-.stage { border-bottom: 1px solid var(--border-soft); border-radius: 0; background: transparent; box-shadow: none; }
-.stage:last-child { border-bottom: 0; }
-@media (min-width: 768px) {
-  .stage { grid-template-columns: 160px 1fr; }
-}
-
-/* ds5b: detail selalu rata kiri */
-.stage > span:last-child { text-align: left !important; }
-
-/* ds6: config hub sub-tabs */
-.subtabs {
-  display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-  padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--border-soft);
-  flex: none; scrollbar-width: none;
-}
-.subtabs::-webkit-scrollbar { display: none; }
-.subtabs button {
-  flex: none; min-height: 34px; padding: 6px 14px; border-radius: 999px;
-  border: 1.5px solid var(--border-soft); background: var(--surface); color: var(--muted);
-  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-}
-.subtabs button.active { background: var(--primary); border-color: var(--border); color: var(--text); font-weight: 700; }
-
-/* ds7: final professional pass */
-.row.user .bubble { background: var(--primary); color: var(--text); box-shadow: 0 2px 8px rgba(217,164,6,.2); border: none; }
-.row.assistant .bubble { box-shadow: 0 1px 3px rgba(23,23,23,.05); }
-:root, html, html[data-theme="light"], html[data-theme="dark"] { --user-bubble: var(--primary); }
-.icon-btn { border: 1.5px solid #D8D3C4; box-shadow: none; }
-.chat-toolbar { background: var(--bg); }
-#send-btn { border: none; box-shadow: 0 2px 8px rgba(217,164,6,.3); }
-.table-wrap { border: 1px solid #E5E0CE; box-shadow: 0 1px 4px rgba(23,23,23,.05); }
-th { background: var(--surface-soft); border-bottom: 1.5px solid #E5E0CE; }
-.login-card { border: 1px solid #E5E0CE; box-shadow: 0 8px 30px rgba(23,23,23,.08); }
-.kebab-menu { border: 1px solid #E5E0CE; box-shadow: 0 8px 24px rgba(23,23,23,.12); }
-
-/* ds8: pills jangan terpotong */
-.pill { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; max-width: 100% !important; }
-.models-toolbar, .toolbar { flex-wrap: wrap; }
-.models-toolbar .pill, .toolbar .pill { padding: 6px 14px; }
-
-
-html[data-theme="dark"] {
-  --bg: #17181C;
-  --surface: #1F2126;
-  --surface-soft: #262930;
-  --primary: #FFE45C;
-  --primary-hover: #FFD93D;
-  --accent: #3B6FF5;
-  --text: #F2F3F5;
-  --muted: #9AA1AC;
-  --border: #F2F3F5;
-  --border-soft: #34383F;
-  --user-bubble: #FFE45C;
-  --panel: #1F2126;
-  --panel-2: #262930;
-  --ok: #34C58C;
-  --success: #34C58C;
-  --danger: #FF6B6B;
-  --err: #FF6B6B;
-  --warning: #FFC94D;
-  --shadow: 0 2px 8px rgba(0,0,0,.35);
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.3);
-}
-html[data-theme="dark"] .btn.primary { color: #17181C; }
-html[data-theme="dark"] .row.user .bubble { color: #17181C; }
-html[data-theme="dark"] .icon-btn { border-color: #34383F; background: transparent; }
-html[data-theme="dark"] .subtabs button { background: var(--surface); border-color: #34383F; color: var(--muted); }
-html[data-theme="dark"] .subtabs button.active { background: var(--primary); color: #17181C; border-color: var(--primary); }
-html[data-theme="dark"] .table-wrap { border-color: #34383F; }
-html[data-theme="dark"] th { background: var(--surface-soft); border-bottom-color: #34383F; }
-html[data-theme="dark"] .login-card { background: var(--surface); border-color: #34383F; }
-html[data-theme="dark"] .kebab-menu { background: var(--surface); border-color: #34383F; }
-html[data-theme="dark"] .stage { border-bottom-color: #34383F; }
-html[data-theme="dark"] .pill { border-color: #34383F; }
-html[data-theme="dark"] .card, html[data-theme="dark"] .sec, html[data-theme="dark"] section.card { background: var(--surface); border-color: #34383F; }
-html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea { background: var(--surface); border-color: #34383F; color: var(--text); }
-html[data-theme="dark"] .sub { color: var(--muted); }
-html[data-theme="dark"] meta, html[data-theme="dark"] body { color-scheme: dark; }
-
-/* ds9: topbar konsisten */
-.topbar { align-items: center; gap: 10px; }
-.icon-btn { width: 42px; height: 42px; }
-#status-pill { height: 42px; padding: 0 14px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; }
-#status-pill .dot { width: 9px; height: 9px; }
-@media (max-width: 640px) {
-  #status-text::before { content: ""; }
-  #status-pill { padding: 0 12px; }
-  /* teks ringkas: "online" saja di layar sempit */
-  #status-text { font-size: 0; }
-  #status-text::after { content: "Online"; font-size: 13px; font-weight: 700; }
-}
-/* form controls rapi & seragam */
-.field select, .field input, select, input[type="text"], input[type="number"], input[type="password"] {
-  min-height: 42px; border-radius: 10px !important; border: 1.5px solid #D8D3C4 !important;
-  background: var(--surface) !important; color: var(--text) !important; padding: 8px 12px !important; font: inherit !important;
-}
-select:focus, input:focus { outline: none !important; border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(59,111,245,.15) !important; }
-.row-kv { display: grid; grid-template-columns: minmax(110px, 40%) 1fr; align-items: center; gap: 10px; }
-@media (max-width: 420px) { .row-kv { grid-template-columns: 1fr; } }
-/* scrollbar overlap fix */
-.pages { scrollbar-gutter: stable; }
-
-/* ds10: One UI font global + model list cards */
-*, *::before, *::after { font-family: "SamsungOne", "Samsung Sans", "One UI", -apple-system, "Roboto", "Segoe UI", system-ui, sans-serif !important; }
-code, pre, .mono, .mono * { font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace !important; }
-.model-list { display: flex; flex-direction: column; gap: 10px; }
-.model-item {
-  display: block; width: 100%; text-align: left; cursor: pointer;
-  background: var(--surface); border: 1.5px solid #D8D3C4; border-radius: 14px; padding: 12px 14px;
-  font: inherit; color: var(--text); transition: border-color .15s, box-shadow .15s;
-}
-.model-item:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,245,.12); }
-.model-item.active { border-color: var(--primary); background: var(--surface-soft); box-shadow: 0 2px 8px rgba(217,164,6,.18); }
-.mi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.mi-head b { font-size: 14px; overflow-wrap: anywhere; }
-.mi-id { font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
-.mi-caps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-
-/* ds11: header control ukuran sama (ID specificity) */
-#signout-btn, #theme-btn, .menu-btn, #status-pill { width: 42px; height: 42px; }
-#status-pill { width: auto; padding: 0 13px; }
-@media (max-width: 640px) { #signout-btn, #theme-btn, .menu-btn { width: 42px; height: 42px; } }
-
-/* ds12: polish model list & subtabs affordance */
-.model-item.active .badge.acc { background: var(--success); color: #fff; border-color: var(--success); }
-.subtabs { position: relative; mask-image: linear-gradient(to right, #000 85%, transparent); -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); }
-.subtabs button { mask-image: none; -webkit-mask-image: none; }
-
-/* ds13: 1 baris rapi di mana pun */
-/* run rows: single line, icon inline, ellipsis */
-.run-row { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px 2px; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
-.run-row:last-child { border-bottom: 0; }
-.run-icon { flex: none; width: 20px; text-align: center; font-weight: 700; }
-.run-icon.ok { color: var(--success); }
-.run-icon.err { color: var(--danger); }
-.run-icon.run { color: var(--muted); }
-.run-id { flex: none; font-weight: 700; min-width: 34px; }
-.run-dur { flex: none; color: var(--muted); font-size: 12px; min-width: 52px; }
-.run-route { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.run-err { flex: none; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--danger); font-size: 11.5px; font-weight: 600; background: rgba(224,82,82,.08); padding: 2px 8px; border-radius: 999px; }
-/* capabilities: baris label–value 1 baris */
-.cap-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border-soft); min-width: 0; }
-.cap-row:last-child { border-bottom: 0; }
-.cap-k { flex: none; width: 92px; color: var(--muted); font-size: 12px; font-weight: 600; }
-.cap-v { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* kv: nilai 1 baris dgn ellipsis (endpoint panjang terpotong rapi, title di-set terpisah) */
-.kv { flex-wrap: nowrap; }
-.kv .k { min-width: 96px; width: 96px; }
-.kv .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* header pill: tidak pernah pecah kata */
-#status-pill { white-space: nowrap; flex: none; max-width: none !important; }
-#status-text { white-space: nowrap; }
-/* scrollbar lebih tipis di mobile */
-@media (max-width: 640px) {
-  .pages::-webkit-scrollbar { width: 3px; }
-  .run-err { max-width: 96px; }
-}
-
-/* ================================================================
-   ds14 — FINAL NEOBRUTALISM DESIGN SYSTEM (kuning + putih + hitam)
-   Satu sumber kebenaran: override SEMUA blok sebelumnya.
-   ================================================================ */
-html, html[data-theme="light"] {
-  --bg: #FFFDF5; --surface: #FFFFFF; --surface-soft: #FFF9E3;
-  --primary: #FFE45C; --primary-hover: #FFD93D; --accent: #171717;
-  --text: #171717; --muted: #55524A; --border: #171717; --border-soft: #171717;
-  --success: #1DA968; --danger: #E5484D; --warning: #D9A514;
-  --shadow: 4px 4px 0 #171717; --shadow-sm: 2.5px 2.5px 0 #171717;
-  --radius: 12px; --radius-sm: 10px; --radius-xs: 8px;
-}
-html[data-theme="dark"] {
-  --bg: #17181C; --surface: #1F2126; --surface-soft: #262930;
-  --primary: #FFE45C; --text: #F2F3F5; --muted: #9AA1AC;
-  --border: #F2F3F5; --border-soft: #34383F;
-  --shadow: 4px 4px 0 rgba(255,228,92,.9); --shadow-sm: 2.5px 2.5px 0 rgba(255,228,92,.8);
-}
-
-/* ---- CARD: satu ukuran, satu padding, satu radius, shadow offset ---- */
-.card, .login-card, .kebab-menu, .table-wrap, .model-item, .state {
-  background: var(--surface) !important; border: 2px solid var(--border) !important;
-  border-radius: var(--radius) !important; box-shadow: var(--shadow-sm) !important; padding: 14px !important;
-}
-.table-wrap, .state { padding: 4px !important; }
-.table-wrap table { margin: 0; }
-
-/* ---- BUTTON: satu bentuk, shadow offset, hard press ---- */
-.btn, button.chip {
-  display: inline-flex !important; align-items: center !important; justify-content: center !important;
-  min-height: 42px !important; padding: 8px 16px !important;
-  border: 2px solid var(--border) !important; border-radius: var(--radius-sm) !important;
-  background: var(--surface) !important; color: var(--text) !important;
-  font: inherit !important; font-weight: 700 !important; font-size: 13.5px !important;
-  box-shadow: var(--shadow-sm) !important; cursor: pointer;
-}
-.btn:hover, button.chip:hover { background: var(--surface-soft) !important; }
-.btn:active, button.chip:active { transform: translate(2px,2px) !important; box-shadow: none !important; }
-.btn.primary, #send-btn, #refresh-models {
-  background: var(--primary) !important; box-shadow: var(--shadow-sm) !important; border: 2px solid var(--border) !important;
-}
-.btn.sm { min-height: 36px !important; padding: 5px 12px !important; font-size: 12.5px !important; box-shadow: 2px 2px 0 var(--border) !important; }
-.btn.danger { background: var(--danger) !important; color: #fff !important; }
-
-/* ---- BADGE / PILL: satu bentuk pill, border hitam 1.5px ---- */
-.badge, .pill {
-  display: inline-flex !important; align-items: center !important; gap: 6px !important;
-  padding: 3px 10px !important; border-radius: 999px !important;
-  border: 1.5px solid var(--border) !important; background: var(--surface) !important;
-  font-size: 11.5px !important; font-weight: 700 !important; color: var(--text) !important;
-  white-space: nowrap !important; max-width: 100% !important;
-  overflow: hidden !important; text-overflow: ellipsis !important; flex: none;
-}
-.badge.ok, .badge.acc, .pill.ok { background: var(--primary) !important; }
-.pill.err, .badge:has(+ *) {}
-.badge.ok, .badge.acc { background: #C9F2DD !important; }
-
-/* ---- INPUT / SELECT: border hitam tegas, tanpa glow ---- */
-input, select, textarea, .editor {
-  min-height: 42px !important; border: 2px solid var(--border) !important;
-  border-radius: var(--radius-sm) !important; background: var(--surface) !important;
-  color: var(--text) !important; padding: 8px 12px !important; font: inherit !important;
-  box-shadow: none !important;
-}
-input:focus, select:focus, textarea:focus, .editor:focus {
-  outline: none !important; border-color: var(--border) !important;
-  box-shadow: 2.5px 2.5px 0 var(--primary) !important;
-}
-
-/* ---- ICON BUTTON & HEADER: seragam 42px, shadow offset ---- */
-.icon-btn, .menu-btn, #signout-btn, #theme-btn, #status-pill {
-  width: 42px !important; height: 42px !important;
-  border: 2px solid var(--border) !important; border-radius: var(--radius-sm) !important;
-  background: var(--surface) !important; box-shadow: var(--shadow-sm) !important;
-}
-#status-pill { width: auto !important; padding: 0 12px !important; }
-.icon-btn:active, #status-pill:active { transform: translate(2px,2px); box-shadow: none; }
-
-/* ---- NAV: aktif = kuning solid + border hitam + shadow offset ---- */
-.nav-item { border: 2px solid transparent !important; border-radius: var(--radius-sm) !important; font-weight: 600 !important; box-shadow: none !important; }
-.nav-item.active { background: var(--primary) !important; border-color: var(--border) !important; box-shadow: var(--shadow-sm) !important; font-weight: 800 !important; }
-.nav-label { font-weight: 800 !important; letter-spacing: .08em; }
-
-/* ---- SUBTABS: pill aktif kuning solid ---- */
-.subtabs button {
-  border: 2px solid var(--border-soft) !important; border-radius: 999px !important;
-  background: var(--surface) !important; color: var(--muted) !important;
-  font-weight: 700 !important; box-shadow: none !important; min-height: 36px !important;
-}
-.subtabs button.active { background: var(--primary) !important; color: var(--text) !important; border-color: var(--border) !important; box-shadow: 2px 2px 0 var(--border) !important; }
-
-/* ---- CHAT: bubble tegas, composer clean ---- */
-.row.assistant .bubble { background: var(--surface) !important; border: 2px solid var(--border) !important; border-radius: var(--radius) !important; border-bottom-left-radius: 4px !important; box-shadow: none !important; }
-.row.user .bubble { background: var(--primary) !important; color: var(--text) !important; border: 2px solid var(--border) !important; border-radius: var(--radius) !important; border-bottom-right-radius: 4px !important; box-shadow: var(--shadow-sm) !important; }
-.composer, .chat-toolbar, .composer input, .composer textarea {
-  border-radius: var(--radius) !important; box-shadow: none !important;
-}
-.composer input, .composer textarea, #msg-input {
-  border: 2px solid var(--border) !important; background: var(--surface) !important; box-shadow: none !important;
-}
-#send-btn { min-height: 42px !important; }
-.logo, .logo-mark { box-shadow: var(--shadow-sm) !important; }
-
-/* ---- KV: label & value sejajar, nama atas deskripsi bawah sudah via markup baru ---- */
-.kv { padding: 6px 0 !important; border-bottom: 1px dashed rgba(23,23,23,.18) !important; align-items: center !important; }
-.kv:last-child { border-bottom: 0 !important; }
-.kv .k { font-weight: 700 !important; font-size: 12px !important; }
-.kv .v { font-weight: 600 !important; }
-
-/* ---- RUN & CAP rows: konsisten dgn neobrutalism ---- */
-.run-row { border-bottom: 1px dashed rgba(23,23,23,.18) !important; }
-.cap-row { border-bottom: 1px dashed rgba(23,23,23,.18) !important; }
-.run-err { background: var(--danger) !important; color: #fff !important; border: 1.5px solid var(--border) !important; font-weight: 700 !important; }
-.model-item.active { background: var(--surface-soft) !important; }
-.model-item.active .badge.acc { background: var(--primary) !important; color: var(--text) !important; }
-
-/* ---- ANTI-WRAP: tidak ada teks patah berantakan ---- */
-h1, h2, h3, #page-title, .sec-head h2 { letter-spacing: -0.01em; }
-.card h3 { font-size: 13px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: .06em; margin-bottom: 8px !important; }
-.metric { font-size: 28px !important; font-weight: 800 !important; }
-.metric small { font-weight: 700 !important; }
-
-/* anti teks 2-baris berantakan di elemen identitas */
-.mi-head b, .run-id, #status-text, .nav-item, .subtabs button, .btn { white-space: nowrap !important; }
-.mi-head b, .run-id { overflow: hidden; text-overflow: ellipsis; }
-
-/* ds14b: state = nama di atas, deskripsi di bawah */
-.state .big { line-height: 1.2; }
-.state h2 { font-weight: 800 !important; font-size: 17px !important; }
-.state .sub, .state { color: var(--text); }
-.state .sub { color: var(--muted); font-size: 13px; max-width: 260px; margin: 0 auto; }
-
-/* ds14c: chat toolbar & composer */
-.chat-toolbar { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
-.chat-toolbar::-webkit-scrollbar { display: none; }
-[data-desktop-only] { display: inline-flex !important; }
-@media (max-width: 640px) { [data-desktop-only] { display: none !important; } }
-.chat-input-wrap, .chat-input-box { border: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
-#chat-input { border: 2px solid var(--border) !important; border-radius: var(--radius) !important; box-shadow: var(--shadow-sm) !important; }
-
-/* ds14d: label-value alignment & palet ketat */
-.kv .k, .cap-k { width: 112px !important; min-width: 112px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-.kv .v, .cap-v { text-align: left !important; }
-.badge.ok, .badge.acc, .badge.warn { background: var(--primary) !important; color: var(--text) !important; }
-.trend-ok { color: var(--success) !important; }
-
-/* ds14e: seragamkan shadow di semua komponen */
-.pill, .badge { box-shadow: 1.5px 1.5px 0 var(--border) !important; }
-.subtabs button { box-shadow: 1.5px 1.5px 0 var(--border) !important; }
-.subtabs button.active { box-shadow: 2.5px 2.5px 0 var(--border) !important; }
-/* composer padding bawah agar shadow tidak terpotong */
-.chat-input-wrap { padding-bottom: 6px !important; }
-
-/* ds15: files page & seragamkan sisanya */
-.art-form { display: grid; grid-template-columns: 1fr 84px; gap: 8px; margin-bottom: 10px; }
-.art-form #art-content { grid-column: 1 / -1; }
-.art-form #art-create { grid-column: 1 / -1; width: 100%; }
-.btn.ghost { background: var(--surface) !important; box-shadow: var(--shadow-sm) !important; border: 2px solid var(--border) !important; color: var(--text) !important; }
-.hint { font-size: 11.5px !important; color: var(--muted) !important; line-height: 1.5; }
-em { font-style: normal !important; font-weight: 600 !important; color: var(--muted) !important; }
-@media (min-width: 640px) {
-  .art-form { grid-template-columns: 1fr 84px 2fr auto; }
-  .art-form #art-content, .art-form #art-create { grid-column: auto; }
-  .art-form #art-create { width: auto; }
-}
-/* memory filter chips: seragam */
-.chip.active { background: var(--primary) !important; color: var(--text) !important; border-color: var(--border) !important; }
-/* logs page: mono steps rapi */
-.stage .mono { font-size: 11px !important; }
-
-/* ===== ds16: hapus divider berlebih, kurangi nested box, alignment kiri ===== */
-.kv, .run-row, .cap-row, .stage { border-bottom: 0 !important; border-top: 0 !important; }
-.kv { padding: 5px 0 !important; }
-.run-row, .cap-row { padding: 6px 0 !important; }
-/* hint & sub jangan punya border */
-.hint, .sub { border: 0 !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
-/* th tanpa border bawah ganda */
-th { border-bottom: 2px solid var(--border) !important; }
-td { border: 0 !important; }
-/* semua teks rata kiri */
-.card, .card * { text-align: left !important; }
-.state, .state * { text-align: center !important; }
-/* badge & button tidak dorong teks ke kanan: row-actions rata kiri */
-.row-actions { display: flex !important; justify-content: flex-start !important; gap: 8px !important; flex-wrap: wrap !important; }
-.filters { display: flex !important; align-items: center !important; gap: 10px !important; flex-wrap: wrap !important; text-align: left !important; justify-content: flex-start !important; }
-.filters .sub { flex: 1 1 100% !important; text-align: left !important; }
-
-/* ds16b: logs list & detail & profiles */
-.logs-list { display: flex; flex-direction: column; }
-.log-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; min-width: 0; }
-.log-row .log-main { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
-.log-row .run-route { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log-row .btn { flex: none; }
-/* run detail stage: nama bold di atas, note di bawah, rata kiri */
-.stage { display: flex !important; align-items: flex-start !important; gap: 10px !important; padding: 7px 0 !important; background: transparent !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; }
-.stage .mark { width: 20px !important; flex: none !important; text-align: center !important; font-weight: 800 !important; }
-.stage > span:last-child { display: block !important; min-width: 0 !important; flex: 1 !important; }
-.stage b { display: block !important; font-size: 13px !important; font-weight: 700 !important; text-align: left !important; }
-.stage .sub { display: block !important; margin-top: 2px !important; font-size: 12px !important; color: var(--muted) !important; text-align: left !important; }
-/* doctor page: same full-width left alignment */
-#page-doctor .stage { padding: 8px 0 !important; }
-/* profiles cards grid 1 kolom mobile */
-@media (max-width: 640px) { .grid.cols-2 { grid-template-columns: 1fr !important; } }
-
-/* ds16c: badge error konsisten + badge state warna */
-.log-row .run-err { flex: 0 0 auto; max-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badge.err { background: var(--danger) !important; color: #fff !important; border-color: var(--border) !important; }
-.badge.ok { background: var(--primary) !important; }
-
-/* ds16d: doctor stage mark berisi pill */
-#page-doctor .stage .mark { width: auto !important; min-width: 0 !important; display: inline-flex !important; align-items: flex-start !important; }
-#page-doctor .stage .mark .pill { position: static !important; }
-/* fallback umum: .stage .mark berisi .pill jangan di-compress */
-.stage .mark .pill { flex: none; }
-
-/* ds16e: doctor — pill kiri inline, stage flex row kiri penuh */
-#page-doctor .stage { display: flex !important; text-align: left !important; justify-content: flex-start !important; }
-#page-doctor .stage .mark { width: auto !important; margin: 0 !important; align-self: flex-start !important; text-align: left !important; }
-#page-doctor .stage .mark .pill { display: inline-flex !important; }
-#page-doctor .card > .stage { align-items: flex-start !important; }
-
-/* ds16f: spacing CTA profiles & sub */
-.filters { margin-top: 10px !important; padding-top: 10px !important; }
-.filters .btn { margin: 0 !important; }
-#page-profiles .filters { margin-bottom: 2px !important; }
-.sub { margin-top: 0 !important; }
-
-/* ds17: logs — error badge jadi elemen sendiri, tidak nabrak border / turun jelek */
-.log-row { padding: 9px 0; }
-.log-row .log-main { flex-wrap: nowrap; }
-.log-row .run-err { flex: 0 1 auto; min-width: 0; margin-left: auto; }
-.run-route .run-err { margin-left: 0; }
-
-/* ds18: logs failed — error teks merah polos tanpa badge/border; route failed disembunyikan (sudah dihapus di JS) */
-.run-err-plain { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--danger); font-size: 12px; font-weight: 600; margin-left: auto; }
-.log-row .run-err { display: none; }
-/* skill & subtabs: teks tidak menabrak garis tipis bawah */
-.subtabs button { padding-bottom: 10px; margin-bottom: -2px; }
-
-/* ds18b: inline kv — pasangan label:value mengalir 1-2 baris rapat, tanpa stage/baris per item */
-.inline-kv { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 2px 0; }
-.inline-kv .ik { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
-.inline-kv .ik b { color: var(--text); font-weight: 700; }
-
-/* ds18c: baris failed — durasi tidak menyusut, error yang dipotong */
-.log-row.f .run-route { flex: 0 0 auto; }
-.log-row.f .run-err-plain { flex: 1 1 auto; text-align: right; }
-
-/* ds19: facts plain — api key/token/auth jadi teks biasa tanpa border/badge */
-.fact-plain { font-weight: 700; }
-.fact-plain.ok-t { color: var(--success); }
-.fact-plain.warn-t { color: var(--danger); }
-/* chips flow rapat utk Executable commands & Environment */
-.inline-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
-.inline-chips .chip { margin: 0; }
-
-/* ds19b: jarak konten dari garis tipis bawah subtabs (semua tab hub) */
-.subtabs { border-bottom: 1px solid var(--border-soft); padding-bottom: 9px; }
-.subtabs button { margin-bottom: -3px; padding-bottom: 11px; }
-.subtabs + .filters,
-.subtabs + .card,
-.subtabs + .grid,
-.subtabs + .sec-head,
-.subtabs + #run-detail,
-.subtabs + .empty,
-.subtabs + .state { margin-top: 14px !important; }
-#page-logs .card + #run-detail { margin-top: 14px; }
-
-/* ds20: log-row — route benar-benar menyusut (flex-basis 0) */
-.log-row .run-route { flex: 1 1 0 !important; }
-.log-row .btn { flex: none; }
+/* mobile-refine v1.1: composer inner input seamless */
+.chat-input-box #chat-input { border: none !important; box-shadow: none !important; background: transparent !important; padding-left: 2px; }
+.chat-input-box { padding-left: 16px; }
 </style>
 </head>
 <body>
@@ -1363,17 +690,23 @@ td { border: 0 !important; }
       <div class="logo">PC</div>
       <div><b>Pico Claw</b><small>Agent Control Plane</small></div>
     </div>
-    <nav id="nav">
-      <div class="nav-label">Workspace</div>
+    <nav id="nav" style="display:flex;flex-direction:column;gap:3px;">
       <button class="nav-item" data-page="chat"><span class="ico">💬</span>Chat</button>
-      <button class="nav-item" data-page="sessions"><span class="ico">🗂</span>Sessions</button>
-      <button class="nav-item" data-page="files"><span class="ico">📎</span>Files</button>
-      <div class="nav-label">Agent</div>
       <button class="nav-item" data-page="overview"><span class="ico">🛰</span>Overview</button>
-      <button class="nav-item" data-page="memory"><span class="ico">🧠</span>Memory</button>
-      <div class="nav-label">System</div>
-      <button class="nav-item" data-page="config-hub"><span class="ico">⚙️</span>Config</button>
+      <button class="nav-item" data-page="sessions"><span class="ico">🗂</span>Sessions</button>
+      <button class="nav-item" data-page="models"><span class="ico">🧠</span>Models</button>
+      <button class="nav-item" data-page="profiles"><span class="ico">🎭</span>Profiles</button>
+      <button class="nav-item" data-page="skills"><span class="ico">✨</span>Skills</button>
+      <button class="nav-item" data-page="tools"><span class="ico">🛠</span>Tools</button>
+      <button class="nav-item" data-page="memory"><span class="ico">📚</span>Memory</button>
+      <button class="nav-item" data-page="gateways"><span class="ico">📡</span>Gateways</button>
+      <button class="nav-item" data-page="config"><span class="ico">⚙️</span>Config</button>
+      <button class="nav-item" data-page="settings"><span class="ico">🎛</span>Settings</button>
+      <button class="nav-item" data-page="sandbox"><span class="ico">📦</span>Sandbox</button>
       <button class="nav-item" data-page="doctor"><span class="ico">🩺</span>Doctor</button>
+      <button class="nav-item" data-page="jobs"><span class="ico">⏳</span>Jobs</button>
+      <button class="nav-item" data-page="files"><span class="ico">📎</span>Files</button>
+      <button class="nav-item" data-page="logs"><span class="ico">🧾</span>Logs</button>
     </nav>
     <div class="spacer"></div>
     <div class="side-foot" id="side-foot"><span class="dot"></span>loading runtime…</div>
@@ -1388,9 +721,8 @@ td { border: 0 !important; }
       </div>
       <div class="spacer"></div>
       <span class="pill" id="status-pill"><span class="dot"></span><span id="status-text">connecting…</span></span>
-      <button class="icon-btn" id="signout-btn" hidden title="Sign out" aria-label="Sign out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></button>
-      <button class="icon-btn" id="restart-btn" title="Restart Telegram gateway" aria-label="Restart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-      <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+      <button class="icon-btn" id="signout-btn" hidden title="Sign out — clears the stored dashboard token" aria-label="Sign out">⏻</button>
+      <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
     </header>
     <div class="pages">
       <section id="page-chat" class="page page-chat active" aria-label="Chat workspace">
@@ -1405,10 +737,11 @@ td { border: 0 !important; }
               <button class="btn sm" id="conv-toggle" aria-label="Show conversations">💬 Chats</button>
               <label class="sub" for="model-select">Model</label>
               <select id="model-select"><option value="">loading…</option></select>
+              <span class="pill" id="model-pill"><span class="dot"></span>active</span>
               <div class="spacer" style="flex:1"></div>
-              <button class="btn sm" id="rename-conv" data-desktop-only>Rename</button>
-              <button class="btn sm" id="clear-conv" data-desktop-only>Clear</button>
-              <button class="btn sm danger" id="delete-conv" data-desktop-only>Delete</button>
+              <button class="btn sm" id="rename-conv">Rename</button>
+              <button class="btn sm" id="clear-conv">Clear</button>
+              <button class="btn sm danger" id="delete-conv">Delete</button>
             </div>
             <div id="messages" aria-live="polite"></div>
             <div class="chat-input-wrap">
@@ -1624,12 +957,6 @@ function signOut() {
   showLogin("Signed out. Enter the dashboard token to continue.");
 }
 $("#signout-btn").addEventListener("click", signOut);
-$("#restart-btn").addEventListener("click", () => {
-  confirmDialog("Restart Telegram", "Restart the Telegram gateway now?", async () => {
-    try { await api("/api/gateways/telegram/restart", { method: "POST", body: "" }); toast("Telegram gateway restarted."); refreshStatus(); }
-    catch (err) { toast(err.message, "err"); }
-  });
-});
 
 /* ---------------- theme ---------------- */
 function applyTheme(theme) {
@@ -1792,7 +1119,7 @@ async function loadHistory() {
     box.innerHTML = "";
     const msgs = (detail && detail.messages) || [];
     if (!msgs.length) {
-      box.innerHTML = '<div class="state"><div class="big">🦔</div><h2 style="margin:.2em 0;">Pico Claw</h2><div class="sub">Start the conversation — ask anything, or ask the agent to use its tools.</div></div>';
+      box.innerHTML = '<div class="state"><div class="big">🦔</div><h2 style="margin:.2em 0;">Pico Claw</h2>Start the conversation — ask anything, or ask the agent to use its tools.</div>';
       return;
     }
     for (const m of msgs) addBubble(m.role, m.content, m.role === "assistant" ? null : null);
@@ -1943,7 +1270,7 @@ pageLoaders.overview = async () => {
     const capList = (caps.tools || []).filter((t) => t.enabled).map((t) => esc(t.name)).join(", ") || "none";
     el.innerHTML =
       '<div class="grid cols-3">' +
-      cardEl("Agent", kv("Version", esc(status.version)) + kv("Uptime", (() => { const u = status.uptime_ms || 0; return u >= 3600000 ? Math.floor(u/3600000)+"h "+Math.round((u%3600000)/60000)+"m" : u >= 60000 ? Math.floor(u/60000)+"m "+Math.round((u%60000)/1000)+"s" : Math.round(u/1000)+"s"; })()) +
+      cardEl("Agent", kv("Version", esc(status.version)) + kv("Uptime", Math.round((status.uptime_ms || 0) / 1000) + "s") +
         kv("Active profile", esc(status.active_profile || "none")) + kv("Sessions", (status.sessions && status.sessions.count) || 0)) +
       cardEl("Provider", kv("Endpoint", esc(status.provider)) + kv("Model", esc(status.model)) +
         kv("Connection", status.provider_connected ? '<span class="badge ok">connected</span>' : '<span class="badge warn">offline</span>') +
@@ -1954,26 +1281,17 @@ pageLoaders.overview = async () => {
         (m.tool_calls || 0) + '<small>tool calls</small></div>') +
       cardEl("Runs", '<div class="metric trend-ok">' + (m.successful_runs || 0) + '<small>succeeded</small></div><div class="metric trend-err">' +
         (m.failed_runs || 0) + '<small>failed</small></div>') +
-      cardEl("Capabilities",
-        '<div class="cap-row"><span class="cap-k">Tools</span><span class="cap-v">' + capList + '</span></div>' +
-        '<div class="cap-row"><span class="cap-k">CLI</span><span class="cap-v">' + (caps.channels.cli ? "On" : "Off") + '</span></div>' +
-        '<div class="cap-row"><span class="cap-k">Dashboard</span><span class="cap-v">' + (caps.channels.dashboard ? "On" : "Off") + '</span></div>' +
-        '<div class="cap-row"><span class="cap-k">Telegram</span><span class="cap-v">' + (caps.channels.telegram ? "On" : "Off") + '</span></div>') +
+      cardEl("Capabilities", '<div style="font-size:13px;line-height:1.8">Tools: ' + capList + '<br>CLI: ' +
+        (caps.channels.cli ? "on" : "off") + ' · Dashboard: ' + (caps.channels.dashboard ? "on" : "off") +
+        ' · Telegram: ' + (caps.channels.telegram ? "on" : "off") + '</div>') +
       '</div>' +
       '<div class="sec-head"><h2>Recent activity</h2></div><div class="card">' +
       (runs.length
-        ? runs.slice(0, 8).map((r) => {
-            const dur = r.duration_ms >= 60000 ? Math.floor(r.duration_ms/60000) + "m " + Math.round((r.duration_ms%60000)/1000) + "s"
-                      : r.duration_ms >= 1000 ? (r.duration_ms/1000).toFixed(1) + "s" : r.duration_ms + "ms";
-            return '<div class="run-row">' +
-              '<span class="run-icon ' + (r.state === "completed" ? "ok" : (r.state === "failed" ? "err" : "run")) + '">' +
-                (r.state === "completed" ? "\u2713" : (r.state === "failed" ? "\u2717" : "\u2022")) + '</span>' +
-              '<span class="run-id">#' + r.id + '</span>' +
-              '<span class="run-dur">' + dur + '</span>' +
-              '<span class="run-route">' + esc(r.route) + '</span>' +
-              (r.error ? '<span class="run-err" title="' + esc(r.error) + '">' + esc(r.error) + '</span>' : '') +
-            '</div>';
-          }).join("")
+        ? runs.slice(0, 8).map((r) =>
+            '<div class="stage ' + (r.state === "completed" ? "done" : (r.state === "failed" ? "fail" : "run")) + '">' +
+            '<span class="mark">' + (r.state === "completed" ? "\u2713" : (r.state === "failed" ? "\u2717" : "\u2022")) + '</span>' +
+            '<span>#' + r.id + ' · ' + esc(r.state) + ' · ' + r.duration_ms + 'ms · route ' + esc(r.route) +
+            (r.error ? ' · <span class="trend-err">' + esc(r.error) + '</span>' : '') + '</span></div>').join("")
         : stateBlock("", "\uD83D\uDDC2", "No agent runs recorded yet.")) +
       '</div>';
   } catch (err) {
@@ -2009,10 +1327,6 @@ pageLoaders.sessions = async () => {
 };
 
 /* ---------------- models ---------------- */
-function capBadgeL(model, key, label) {
-  if (!model.capabilities_known) return '<span class="badge">' + label + ': ?</span>';
-  return model[key] ? '<span class="badge ok">' + label + '</span>' : '<span class="badge">' + label + '</span>';
-}
 function capBadge(model, key) {
   if (!model.capabilities_known) return '<span class="badge">unknown</span>';
   return model[key] ? '<span class="badge ok">yes</span>' : '<span class="badge">no</span>';
@@ -2026,32 +1340,18 @@ pageLoaders.models = async () => {
     const fetched = data.fetched_at_ms ? new Date(data.fetched_at_ms).toLocaleString() : "never";
     el.innerHTML =
       '<div class="filters"><button class="btn sm primary" id="refresh-models">Refresh models</button>' +
-      '<span class="pill"><span class="dot"></span>Fetched: ' + esc(fetched) + '</span>' +
+      '<span class="pill"><span class="dot"></span>last fetched: ' + esc(fetched) + '</span>' +
       '<span class="pill"><span class="dot"></span>active: ' + esc(data.active_model) + '</span></div>' +
-      '<div class="model-list">' +
+      '<div class="card"><div class="table-wrap"><table><thead><tr><th>Model</th><th>Provider</th><th>Streaming</th><th>Vision</th><th>Tool calling</th><th>Context</th></tr></thead><tbody>' +
       (modelsCache.length
-        ? modelsCache.map((m, idx) =>
-            '<button class="model-item' + (m.id === data.active_model ? ' active' : '') + '" data-model="' + esc(m.id) + '">' +
-              '<div class="mi-head"><b>' + esc(m.display_name || m.id) + '</b>' +
-              (m.id === data.active_model ? '<span class="badge acc">Active</span>' : '') + '</div>' +
-              (m.id !== (m.display_name || m.id) ? '<div class="mi-id mono dim">' + esc(m.id) + '</div>' : '') +
-              '<div class="mi-caps">' +
-                capBadgeL(m, "streaming", "Stream") + capBadgeL(m, "vision", "Vision") + capBadgeL(m, "tool_calling", "Tools") +
-                (m.context_limit ? '<span class="badge">ctx ' + m.context_limit.toLocaleString() + '</span>' : '') +
-              '</div>' +
-            '</button>').join("")
-        : stateBlock("", "\uD83E\uDDE0", "No models discovered yet.", "pageLoaders.models()")) +
-      '</div>';
-    document.querySelectorAll(".model-item").forEach((b) => {
-      b.addEventListener("click", async () => {
-        const model = b.dataset.model;
-        if (model === data.active_model) return;
-        try { await api("/api/settings", { method: "PUT", body: JSON.stringify({ model }) });
-          toast("Active model: " + model); pageLoaders.models(); refreshStatus();
-          if (runtimeStatus) runtimeStatus.model = model;
-        } catch (err) { toast(err.message, "err"); }
-      });
-    });
+        ? modelsCache.map((m) =>
+            '<tr><td><b>' + esc(m.display_name || m.id) + '</b>' +
+            (m.id !== (m.display_name || m.id) ? ' <span class="mono dim">' + esc(m.id) + '</span>' : "") +
+            (m.id === data.active_model ? ' <span class="badge acc">active</span>' : "") + '</td><td>' + esc(m.provider || "\u2014") + '</td>' +
+            '<td>' + capBadge(m, "streaming") + '</td><td>' + capBadge(m, "vision") + '</td><td>' + capBadge(m, "tool_calling") + '</td>' +
+            '<td>' + (m.context_limit ? m.context_limit.toLocaleString() : "\u2014") + '</td></tr>').join("")
+        : '<tr><td colspan="6">' + stateBlock("", "\uD83E\uDDE0", "No models discovered yet. Refresh queries the provider models endpoint.") + '</td></tr>') +
+      '</tbody></table></div></div>';
     $("#refresh-models").addEventListener("click", async () => {
       modelsCache = [];
       try { await api("/api/models/refresh", { method: "POST" }); toast("Model list refreshed."); pageLoaders.models(); refreshStatus(); }
@@ -2090,8 +1390,8 @@ pageLoaders.profiles = async () => {
   try {
     const list = await api("/api/profiles");
     el.innerHTML =
-      '<div class="filters"><button class="btn primary" id="new-profile">+ New profile</button></div>' +
-      '<div class="sub" style="margin:8px 0 12px">Profiles manage identity, memory and instructions.</div>' +
+      '<div class="filters"><button class="btn sm primary" id="new-profile">+ New profile</button>' +
+      '<span class="sub">Profiles manage identity, memory and instructions. Files are constrained to config/profiles.</span></div>' +
       '<div class="grid cols-2" id="profile-cards">' +
       (list.length
         ? list.map((pr) =>
@@ -2342,36 +1642,27 @@ pageLoaders.sandbox = async () => {
     } else {
       html += "<div class='sec-head'><h2>Workspace</h2><span class='spacer'></span>" +
         "<span class='pill ok'><span class='dot'></span>active</span></div>";
-      const inline = (pairs) => "<div class='inline-kv'>" + pairs.map((p) => "<span class='ik'><b>" + esc(p[0]) + "</b> " + esc(p[1]) + "</span>").join("") + "</div>";
-      html += "<div class='card'>" + inline([
-        ["Root", "./" + data.root],
-        ["Read", policy.read ? "granted" : "denied"],
-        ["Write", policy.write ? "granted" : "denied"],
-        ["Execute", policy.execute ? "granted" : "denied"],
-        ["Network", policy.network ? "granted" : "disabled"]
-      ]);
+      html += "<div class='card'><div class='row-actions'>" + row("Root", "./" + data.root + "/") +
+        row("Read", policy.read ? "granted" : "denied") + row("Write", policy.write ? "granted" : "denied") +
+        row("Execute", policy.execute ? "granted" : "denied") + row("Network", policy.network ? "granted" : "disabled") + "</div>";
       html += "<div class='hint'>Every agent path is validated (no absolute paths, no <code>..</code>, no Windows device names) and resolved " +
         "without following symlinks or junctions; all operations stay inside the workspace.</div></div>";
       html += "<div class='sec-head'><h2>Executable commands</h2></div>";
       const cmds = (policy.executable_commands || []);
-      html += "<div class='card'><div class='inline-kv'>" +
-        (cmds.length ? cmds.map((c) => "<span class='ik'><b>" + esc(c) + "</b></span>").join("") : "<em>none — process.exec is denied</em>") + "</div></div>";
+      html += "<div class='card'><div class='row-actions'>" +
+        (cmds.length ? cmds.map((c) => "<span class='chip'>" + esc(c) + "</span>").join(" ") : "<em>none — process.exec is denied</em>") + "</div></div>";
       html += "<div class='sec-head'><h2>Environment names forwarded</h2></div>";
       const envs = (policy.env_names || []);
-      html += "<div class='card'><div class='inline-kv'>" +
-        (envs.length ? envs.map((c) => "<span class='ik'><b>" + esc(c) + "</b></span>").join("") : "<em>none</em>") +
-        "</div><div class='hint'>Values are never shown; only names are forwarded.</div></div>";
+      html += "<div class='card'><div class='row-actions'>" +
+        (envs.length ? envs.map((c) => "<span class='chip'>" + esc(c) + "</span>").join(" ") : "<em>none</em>") +
+        "<div class='hint'>Values are never shown; only variable names are forwarded to allowlisted commands.</div></div></div>";
       html += "<div class='sec-head'><h2>Resource limits</h2></div>";
       const mb = (n) => (n >= 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + " MB" : n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B");
-      html += "<div class='card'>" + inline([
-        ["Read", mb(limits.max_read_bytes)],
-        ["Write", mb(limits.max_write_bytes)],
-        ["Stdout", mb(limits.max_output_bytes)],
-        ["Archive", mb(limits.max_archive_bytes)],
-        ["Extract", mb(limits.max_extracted_bytes)],
-        ["Entries", String(limits.max_entries)],
-        ["Timeout", limits.exec_timeout_ms + " ms"]
-      ]) + "</div>";
+      html += "<div class='card'><div class='row-actions'>" +
+        limitRow("max read", mb(limits.max_read_bytes)) + limitRow("max write", mb(limits.max_write_bytes)) +
+        limitRow("max stdout/stderr", mb(limits.max_output_bytes)) + limitRow("archive size", mb(limits.max_archive_bytes)) +
+        limitRow("extract total", mb(limits.max_extracted_bytes)) + limitRow("entries", limits.max_entries) +
+        limitRow("exec timeout", limits.exec_timeout_ms + " ms") + "</div></div>";
     }
     el.innerHTML = html;
   } catch (err) {
@@ -2392,8 +1683,8 @@ pageLoaders.doctor = async () => {
     let html = "<div class='sec-head'><h2>Overall</h2><span class='spacer'></span>" + statusPill(data.overall) + "</div>";
     html += "<div class='card'>";
     (data.checks || []).forEach((check) => {
-      html += "<div class='stage'><span class='mark'>" + statusPill(check.status) + "</span><span><b>" + esc(check.name) +
-        "</b><span class='sub'>" + esc(check.detail) + "</span></span></div>";
+      html += "<div class='stage'><span class='mark'>" + esc(check.name) + "</span><span>" +
+        statusPill(check.status) + " " + esc(check.detail) + "</span></div>";
     });
     html += "<div class='hint'>Every check performs real work: files are written and deleted, the provider " +
       "API is called, Telegram receives a getMe when configured. unavailable means not configured here.</div></div>";
@@ -2464,14 +1755,15 @@ pageLoaders.files = async () => {
         " <button class='btn ghost' data-del-att='" + esc(a.id) + "'>Delete</button></span></div>";
     });
     if (!(att.attachments || []).length) html += "<em>No attachments uploaded yet.</em>";
-    html += "<div class='hint'>Tersimpan di workspace/uploads/ — nama divalidasi otomatis.</div></div>";
+    html += "<div class='hint'>Uploads live in workspace/uploads/&lt;id&gt;/ with a content-derived type and " +
+      "SHA-256. Names are validated (no traversal, no reserved device names) and treated as data.</div></div>";
 
-    html += "<div class='sec-head'><h2>Artifacts</h2></div><div class='card'><div class='art-form'>" +
-      "<input id='art-filename' placeholder='filename.txt'>" +
+    html += "<div class='sec-head'><h2>Artifacts</h2></div><div class='card'><div class='row-actions'>" +
+      "<input id='art-filename' placeholder='filename.txt' style='flex:1;min-width:160px;'>" +
+      "<input id='art-content' placeholder='content' style='flex:2;min-width:220px;'>" +
       "<select id='art-kind'><option value='txt'>txt</option><option value='md'>md</option>" +
       "<option value='json'>json</option><option value='csv'>csv</option></select>" +
-      "<input id='art-content' placeholder='content'>" +
-      "<button class='btn primary' id='art-create'>Create</button></div>";
+      "<button class='btn ghost' id='art-create'>Create</button></div>";
     (art.artifacts || []).forEach((a) => {
       html += "<div class='stage'><span class='mark'>" + esc(a.filename) + "</span><span>" +
         esc(a.kind) + " · " + kb(a.size) + " · sha256 " + esc(a.sha256_hex.slice(0, 12)) + "… · " +
@@ -2479,7 +1771,8 @@ pageLoaders.files = async () => {
         " <button class='btn ghost' data-del-art='" + esc(a.id) + "'>Delete</button></span></div>";
     });
     if (!(art.artifacts || []).length) html += "<em>No artifacts yet.</em>";
-    html += "<div class='hint'>Supported: txt, md, json, csv, zip.</div></div>";
+    html += "<div class='hint'>Supported: txt, md, json, csv, zip. PDF/DOCX/PPTX/XLSX are reported as " +
+      "unsupported — the runtime never writes a fake file.</div></div>";
     el.innerHTML = html;
 
     const fileInput = $("#attach-file");
@@ -2615,11 +1908,11 @@ function renderConfigForm(cfg, ed, lim) {
     '<div class="grid cols-3">' +
       cardEl("Provider (facts)",
         fact("Endpoint", esc(cfg.provider.endpoint)) +
-        fact("API key", cfg.provider.api_key_set ? '<span class="fact-plain ok-t">Set in environment</span>' : '<span class="fact-plain warn-t">Missing — set it in the server environment</span>') +
+        fact("API key", cfg.provider.api_key_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge warn">missing — set it in the server environment</span>') +
         fact("Active model", esc(cfg.provider.active_model)) +
         fact("Models known", cfg.provider.model_count)) +
       cardEl("Telegram (facts)",
-        fact("Token", cfg.telegram.token_set ? '<span class="fact-plain ok-t">Set in environment</span>' : '<span class="fact-plain">Not set</span>') +
+        fact("Token", cfg.telegram.token_set ? '<span class="badge ok">set in environment</span>' : '<span class="badge">not set</span>') +
         fact("Enabled", cfg.telegram.enabled ? "yes" : "no") +
         fact("State", esc(cfg.telegram.state)) +
         fact("Allowed users", cfg.telegram.allowed_users)) +
@@ -2628,7 +1921,7 @@ function renderConfigForm(cfg, ed, lim) {
         fact("Data directory", esc(cfg.runtime.data_dir)) +
         fact("Config file", esc(cfg.runtime.config_path)) +
         fact("Dashboard", esc(cfg.runtime.dashboard_host) + ":" + cfg.runtime.dashboard_port) +
-        fact("Auth", cfg.runtime.auth_required ? '<span class="fact-plain ok-t">Token required</span>' : '<span class="fact-plain warn-t">Loopback, no token</span>')) +
+        fact("Auth", cfg.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">loopback, no token</span>')) +
     '</div>' +
     '<div class="sec-head"><h2>Editable configuration</h2><div class="spacer"></div>' +
       '<span class="sub">Writes config/config.json atomically. Secrets are environment-only and never editable here.</span></div>' +
@@ -2658,20 +1951,6 @@ function renderConfigForm(cfg, ed, lim) {
 
   $("#cfg-system-prompt").value = B.system_prompt;
   $("#cfg-local-only").value = B.routing_local_only ? "true" : "false";
-
-  /* cfg-model = select sync dgn Models tab */
-  (async () => {
-    const sel = $("#cfg-model");
-    if (!modelsCache.length) { try { const d = await api("/api/models"); modelsCache = d.models || []; } catch (err) {} }
-    sel.innerHTML = "";
-    for (const m of modelsCache) {
-      const opt = document.createElement("option");
-      opt.value = m.id; opt.textContent = m.display_name && m.display_name !== m.id ? m.display_name + " (" + m.id + ")" : m.id;
-      sel.appendChild(opt);
-    }
-    sel.value = configBaseline.model;
-    sel.addEventListener("change", () => configMarkDirty());
-  })();
 
   el.querySelectorAll("input, textarea, select").forEach((input) => {
     input.addEventListener("input", configMarkDirty);
@@ -2717,18 +1996,18 @@ pageLoaders.settings = async () => {
       cardEl("Appearance",
         '<div class="kv"><span class="k">Theme</span><span class="v"><select id="set-theme"><option value="dark">dark</option><option value="light">light</option></select></span></div>' +
         '<div class="kv"><span class="k">Density</span><span class="v"><select id="set-density"><option value="cozy">cozy</option><option value="compact">compact</option></select></span></div>' +
-        '<div class="sub" style="margin-top:8px">Stored per browser.</div>') +
+        '<div class="sub" style="margin-top:8px">Appearance is stored per browser; system preference is used until you choose.</div>') +
       cardEl("Agent",
-        '<div class="kv"><span class="k">Active model</span><span class="v"><select id="set-model" style="max-width:100%"></select></span></div>' +
+        '<div class="kv"><span class="k">Active model</span><span class="v"><input id="set-model" value="' + esc(s.model) + '" style="max-width:200px"></span></div>' +
         '<div class="kv"><span class="k">Source</span><span class="v">' + esc(s.model_source) + '</span></div>' +
-        '<div class="kv"><span class="k">Provider attempts per task (1-5)</span><span class="v"><input id="set-attempts" type="number" min="1" max="5" value="' + s.task_max_attempts + '" style="width:80px"></span></div>' +
+        '<div class="kv"><span class="k">Provider attempts per task (1-5)</span><span class="v"><input id="set-attempts" type="number" min="1" max="5" value="' + s.task_max_attempts + '" style="width:70px"></span></div>' +
         '<div class="row-actions" style="margin-top:10px"><button class="btn primary" id="save-agent">Apply</button><span class="sub" id="agent-hint"></span></div>') +
       cardEl("Security",
         kv("Bind address", esc(s.runtime.dashboard_host) + ":" + s.runtime.dashboard_port) +
         kv("Authentication", s.runtime.auth_required ? '<span class="badge ok">token required</span>' : '<span class="badge warn">off (loopback)</span>') +
         kv("Origin validation", "state-changing requests") +
         kv("Token header", "X-Pico-Token / Authorization: Bearer") +
-        '<div class="sub" style="margin-top:8px">Remote access requires the dashboard token. Use the power button (top bar) to sign out.</div>') +
+        '<div class="sub" style="margin-top:8px">Remote bind requires PICO_CLAW_DASHBOARD_TOKEN. The dashboard asks for it once (login screen), keeps it in <span class="mono">localStorage.picoToken</span>, and sends it as <span class="mono">X-Pico-Token</span>. Use the ⏻ button in the top bar to sign out and clear it.</div>') +
       cardEl("Runtime & limits",
         kv("Workspace", esc(s.runtime.workspace)) +
         kv("Data directory", esc(s.runtime.data_dir)) +
@@ -2736,25 +2015,6 @@ pageLoaders.settings = async () => {
         kv("Max attempts cap", s.limits.max_attempts) +
         kv("Max model length", s.limits.max_model_len)) +
       '</div>';
-    /* isi dropdown model (fetch + apply langsung saat dipilih) */
-    (async () => {
-      const sel = $("#set-model");
-      if (!modelsCache.length) { try { const d = await api("/api/models"); modelsCache = d.models || []; } catch (e) {} }
-      sel.innerHTML = "";
-      const opts = modelsCache.length ? modelsCache.map(m => m.id) : [s.model];
-      if (!opts.includes(s.model)) opts.unshift(s.model);
-      for (const id of opts) {
-        const o = document.createElement("option"); o.value = id; o.textContent = id;
-        if (id === s.model) o.selected = true;
-        sel.appendChild(o);
-      }
-      sel.addEventListener("change", async () => {
-        const model = sel.value; if (!model || model === s.model) return;
-        try { await api("/api/settings", { method: "PUT", body: JSON.stringify({ model }) });
-          s.model = model; toast("Active model: " + model); refreshStatus();
-        } catch (err) { toast(err.message, "err"); sel.value = s.model; }
-      });
-    })();
     $("#set-theme").value = theme === "light" ? "light" : "dark";
     $("#set-density").value = document.documentElement.dataset.density === "compact" ? "compact" : "cozy";
     $("#set-theme").addEventListener("change", (e) => { applyTheme(e.target.value); });
@@ -2764,8 +2024,10 @@ pageLoaders.settings = async () => {
       localStorage.setItem("picoDensity", e.target.value);
     });
     $("#save-agent").addEventListener("click", async () => {
+      const model = $("#set-model").value.trim();
       const attempts = Number($("#set-attempts").value || 1);
       const body = { task_max_attempts: attempts };
+      if (model !== s.model) body.model = model;
       try {
         await api("/api/settings", { method: "PUT", body: JSON.stringify(body) });
         $("#agent-hint").textContent = "Saved.";
@@ -2783,21 +2045,17 @@ pageLoaders.logs = async () => {
   el.innerHTML = '<div class="card">' + skeletonBlock(4) + '</div>';
   try {
     const runs = await api("/api/runs");
-    el.innerHTML = '<div class="card"><div class="logs-list">' +
+    el.innerHTML = '<div class="card"><div class="table-wrap"><table><thead><tr><th>Run</th><th>State</th><th>Route</th><th>Duration</th><th>Started</th><th>Error</th><th></th></tr></thead><tbody>' +
       (runs.length
-        ? runs.map((r) => {
-            const dur = r.duration_ms >= 60000 ? Math.floor(r.duration_ms/60000)+"m "+Math.round((r.duration_ms%60000)/1000)+"s" : (r.duration_ms/1000).toFixed(1)+"s";
-            const badge = r.state === "completed" ? '<span class="badge ok">Completed</span>' : (r.state === "failed" ? '<span class="badge err">Failed · ' + dur + '</span>' : '<span class="badge">' + esc(r.state) + '</span>');
-            const durTxt = r.state === "failed" ? "" : " · " + dur;
-            return '<div class="log-row' + (r.state === "failed" ? ' f' : '') + '">' +
-              '<div class="log-main"><span class="run-id">#' + r.id + '</span>' + badge +
-                '<span class="run-route">' + (r.state === "failed" ? esc(r.error || '') : esc(r.route)) + durTxt + '</span>' +
-                '</div>' +
-              '<button class="btn sm" data-run="' + r.id + '">Inspect</button>' +
-            '</div>';
-          }).join("")
-        : stateBlock("", "\uD83E\uFE9F", "No runs recorded yet.")) +
-      '</div><div id="run-detail"></div>';
+        ? runs.map((r) =>
+            '<tr><td class="mono">#' + r.id + '</td>' +
+            '<td>' + (r.state === "completed" ? '<span class="badge ok">completed</span>' : (r.state === "failed" ? '<span class="badge err">failed</span>' : '<span class="badge">' + esc(r.state) + '</span>')) + '</td>' +
+            '<td>' + esc(r.route) + '</td><td>' + r.duration_ms + 'ms</td>' +
+            '<td>' + (r.started_at_ms ? new Date(r.started_at_ms).toLocaleTimeString() : "\u2014") + '</td>' +
+            '<td>' + (r.error ? '<span class="trend-err">' + esc(r.error) + '</span>' : "\u2014") + '</td>' +
+            '<td><button class="btn sm" data-run="' + r.id + '">Inspect</button></td></tr>').join("")
+        : '<tr><td colspan="7">' + stateBlock("", "\uD83E\uFE9F", "No runs recorded yet. Chat with the agent to generate runs.") + '</td></tr>') +
+      '</tbody></table></div></div><div id="run-detail"></div>';
     el.querySelectorAll("[data-run]").forEach((btn) => btn.addEventListener("click", () => inspectRun(btn.dataset.run)));
   } catch (err) {
     el.innerHTML = stateBlock("err", "\u26a0", "Could not load runs: " + esc(err.message), "pageLoaders.logs()");
@@ -2822,8 +2080,8 @@ async function inspectRun(id) {
     if (r.escalation) stages.push({ label: "Teacher escalation", state: r.escalation.escalated ? "done" : "run", note: esc(r.escalation.reason) + (r.escalation.model ? " · " + r.escalation.model : "") });
     $("#run-detail").innerHTML = '<div class="card fade"><h3>Run #' + r.id + ' — ' + esc(r.state) + '</h3>' +
       stages.map((s) => '<div class="stage ' + s.state + '"><span class="mark">' +
-        (s.state === "done" ? "\u2713" : (s.state === "fail" ? "\u2717" : "\u2022")) + '</span><span><b>' + esc(s.label) +
-        '</b><span class="sub">' + s.note + '</span></span></div>').join("") + '</div>';
+        (s.state === "done" ? "\u2713" : (s.state === "fail" ? "\u2717" : "\u2022")) + '</span><span>' + esc(s.label) +
+        ' <span class="sub">— ' + s.note + '</span></span></div>').join("") + '</div>';
     $("#run-detail").scrollIntoView({ behavior: "smooth" });
   } catch (err) { toast(err.message, "err"); }
 }
@@ -2907,7 +2165,7 @@ boot();
       applySend();
       if (mq.addEventListener) mq.addEventListener("change", applySend);
     }
-    if (false && window.visualViewport && !window.__vvHook) {
+    if (window.visualViewport && !window.__vvHook) {
       window.__vvHook = true;
       var vv = window.visualViewport;
       var onVV = function () {
@@ -2928,147 +2186,5 @@ boot();
 })();
 </script>
 
-<script>
-/* ds2: auto data-label for responsive stacked tables */
-(function () {
-  function label() {
-    document.querySelectorAll(".table-wrap table").forEach(function (tbl) {
-      var heads = tbl.querySelectorAll("thead th");
-      if (!heads.length) return;
-      tbl.querySelectorAll("tbody tr").forEach(function (tr) {
-        tr.querySelectorAll("td").forEach(function (td, i) {
-          var h = heads[i];
-          if (h && !td.hasAttribute("data-label")) td.setAttribute("data-label", h.textContent.trim());
-        });
-      });
-    });
-  }
-  function ready(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
-  ready(function () {
-    label();
-    new MutationObserver(label).observe(document.body, { childList: true, subtree: true });
-  });
-})();
-</script>
-<script>
-/* ds4c: Title-case short labels in pills/badges/chips (data-driven text) */
-(function () {
-  var SEL = ".pill, .badge, .chip, .nav-item, .stage .mark";
-  function tc(t) { return t.replace(/(^|\s|[\(\[\/"\'-])([a-z])/g, function (m, p1, p2) { return p1 + p2.toUpperCase(); }).replace(/\bMcp\b/g, "MCP").replace(/\bApi\b/g, "API").replace(/\bUrl\b/g, "URL").replace(/\bId\b/g, "ID").replace(/\bMcp Servers\b/g, "MCP Servers"); }
-  function apply(root) {
-    (root || document).querySelectorAll(SEL).forEach(function (el) {
-      if (el.__tc) return;
-      el.__tc = true;
-      var walk = function (node) {
-        node.childNodes.forEach(function (n) {
-          if (n.nodeType === 3 && n.textContent.trim().length && n.textContent.length < 60) {
-            n.textContent = tc(n.textContent);
-          } else if (n.nodeType === 1 && !n.classList.contains("dot")) {
-            walk(n);
-          }
-        });
-      };
-      walk(el);
-    });
-  }
-  function ready(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
-  ready(function () {
-    apply();
-    new MutationObserver(function () { apply(); }).observe(document.body, { childList: true, subtree: true });
-  });
-})();
-</script>
-<script>
-/* ds6: config hub — grouped sub-tabs for Models/Profiles/Skills/Tools/Gateways/Sandbox/Jobs/Config */
-(function () {
-  var HUB = [
-    ["models", "Models"], ["profiles", "Profiles"], ["skills", "Skills"], ["tools", "Tools"],
-    ["gateways", "Gateways"], ["sandbox", "Sandbox"], ["jobs", "Jobs"], ["config", "Config File"],
-    ["settings", "Settings"], ["logs", "Logs"]
-  ];
-  function ready(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
-  ready(function () {
-    /* redirect: nav "config-hub" -> last hub tab (default models) */
-    var cfgBtn = document.querySelector('.nav-item[data-page="config-hub"]');
-    var lastTab = localStorage.getItem("picoHubTab") || "models";
-    if (cfgBtn) {
-      cfgBtn.addEventListener("click", function (e) {
-        e.stopImmediatePropagation();
-        var t = localStorage.getItem("picoHubTab") || "models";
-        location.hash = "#/" + t;
-        window.dispatchEvent(new HashChangeEvent("hashchange"));
-      }, true);
-    }
-    /* insert subtab bar into each hub page (before .sec-head / first child) */
-    HUB.forEach(function (h) {
-      var page = document.getElementById("page-" + h[0]);
-      if (!page || page.querySelector(".subtabs")) return;
-      var bar = document.createElement("div");
-      bar.className = "subtabs";
-      bar.setAttribute("data-hub", h[0]);
-      HUB.forEach(function (t) {
-        var b = document.createElement("button");
-        b.textContent = t[1];
-        b.setAttribute("data-target", t[0]);
-        if (t[0] === h[0]) b.classList.add("active");
-        b.addEventListener("click", function () {
-          localStorage.setItem("picoHubTab", t[0]);
-          location.hash = "#/" + t[0];
-          window.dispatchEvent(new HashChangeEvent("hashchange"));
-        });
-        bar.appendChild(b);
-      });
-      page.insertBefore(bar, page.firstChild);
-    });
-    /* sync active tab on page switch */
-    var origShow = window.showPage;
-    window.showPage = function (name) {
-      document.querySelectorAll(".subtabs button").forEach(function (b) {
-        b.classList.toggle("active", b.getAttribute("data-target") === name);
-      });
-      if (HUB.some(function (h) { return h[0] === name; })) localStorage.setItem("picoHubTab", name);
-      return origShow.apply(this, arguments);
-    };
-    /* nav active state: highlight Config item when inside hub pages */
-    var origShow2 = window.showPage;
-    window.showPage = function (name) {
-      var r = origShow2.apply(this, arguments);
-      setTimeout(function () {
-        var inHub = HUB.some(function (h) { return h[0] === name; });
-        var cfgBtn2 = document.querySelector('.nav-item[data-page="config-hub"]');
-        document.querySelectorAll(".nav-item").forEach(function (el) {
-          el.classList.toggle("active", inHub ? el === cfgBtn2 : el.dataset.page === name);
-        });
-      }, 0);
-      return r;
-    };
-  });
-})();
-</script>
-<script>
-/* ds8b: pastikan subtabs selalu ada di halaman hub meski app me-render ulang isi page */
-(function(){
-  var HUB = ["models","profiles","skills","tools","gateways","sandbox","jobs","config","settings","logs"];
-  var LABELS = {models:"Models",profiles:"Profiles",skills:"Skills",tools:"Tools",gateways:"Gateways",sandbox:"Sandbox",jobs:"Jobs",config:"Config File",settings:"Settings",logs:"Logs"};
-  function buildBar(page, cur){
-    var bar = document.createElement("div"); bar.className = "subtabs";
-    HUB.forEach(function(t){ var b=document.createElement("button"); b.textContent=LABELS[t]; b.setAttribute("data-target",t);
-      if(t===cur) b.classList.add("active");
-      b.addEventListener("click", function(){ localStorage.setItem("picoHubTab",t); location.hash="#/"+t; window.dispatchEvent(new HashChangeEvent("hashchange")); });
-      bar.appendChild(b); });
-    page.insertBefore(bar, page.firstChild);
-  }
-  var mo = new MutationObserver(function(muts){
-    var active = document.querySelector(".page.active"); if(!active) return;
-    var id = active.id.replace("page-","");
-    if (HUB.indexOf(id)<0) return;
-    var st = active.querySelector(":scope > .subtabs");
-    if (!st) { buildBar(active, id); return; }
-    var b = st.querySelector('button[data-target="'+id+'"]');
-    if (b && !b.classList.contains("active")) { st.querySelectorAll("button").forEach(function(x){x.classList.remove("active")}); b.classList.add("active"); }
-  });
-  mo.observe(document.body, {childList:true, subtree:true});
-})();
-</script>
 </body>
 </html>
